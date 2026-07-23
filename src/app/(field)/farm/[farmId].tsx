@@ -1,0 +1,231 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Linking, Platform, View } from 'react-native';
+import { Header } from '@/components/Header';
+import { PhotoThumb } from '@/components/PhotoThumb';
+import { preInstallStatus, SYNC_LABEL, syncTone } from '@/components/statusHelpers';
+import { Badge, Button, Card, Divider, Row, Screen, Spacer, StatusPill, Txt } from '@/components/ui';
+import { files, repo } from '@/data';
+import { REJECT_REASON_LABEL, type ChecklistItem, type Photo } from '@/domain/types';
+import { canContactFarm } from '@/domain/permissions';
+import { captureFromCamera, pickFromLibrary, type Picked } from '@/features/photos/capture';
+import { canSubmit, checklistFor, computeChecklistProgress, missingRequired } from '@/features/photos/checklist';
+import { buildPhotoFileName } from '@/features/photos/fileName';
+import { buildAppleMapsDestUrl, buildGoogleMapsDestUrl } from '@/features/routing/mapsLinks';
+import { nowIso } from '@/lib/date';
+import { useCurrentUser } from '@/stores/authStore';
+import { useRepoQuery } from '@/stores/useRepoQuery';
+import { useSyncStore } from '@/stores/syncStore';
+import { colors, radius, spacing } from '@/theme';
+
+const CHECKLIST = checklistFor('pre_install');
+
+export default function FieldFarmDetail() {
+  const { farmId } = useLocalSearchParams<{ farmId: string }>();
+  const user = useCurrentUser();
+  const enqueue = useSyncStore((s) => s.enqueuePhotoUpload);
+
+  const { data: farm } = useRepoQuery(() => repo.getFarm(farmId!), [farmId], ['farms']);
+  const { data: photos } = useRepoQuery(
+    () => (farm ? repo.listPhotos(farm.id, 'pre_install') : Promise.resolve([] as Photo[])),
+    [farm?.id],
+    ['photos'],
+  );
+  const { data: myFarms } = useRepoQuery(() => (user ? repo.listFarms({ assignedTo: user.id }) : Promise.resolve([])), [user?.id], ['farms']);
+
+  const [busyItem, setBusyItem] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const list = photos ?? [];
+  const progress = useMemo(() => computeChecklistProgress(CHECKLIST, list), [list]);
+  const missing = useMemo(() => missingRequired(CHECKLIST, list), [list]);
+  const ready = canSubmit(CHECKLIST, list);
+
+  if (!farm) {
+    return (
+      <Screen>
+        <Header title="Farm" onBack={() => router.back()} />
+        <Txt>Loading…</Txt>
+      </Screen>
+    );
+  }
+
+  const st = preInstallStatus(farm.preInstallStatus);
+  const canContact = user ? canContactFarm(user, farm) : false;
+
+  async function addOne(item: ChecklistItem, picked: Picked, source: 'camera' | 'import') {
+    const now = nowIso();
+    const index = list.filter((p) => p.checklistItemId === item.id).length + 1;
+    const fileName = buildPhotoFileName({ glowFarmId: farm!.glowFarmId, phase: 'pre_install', checklistKey: item.key, index, dateIso: now });
+    await files.persist(picked.uri, fileName);
+    const saved = await repo.savePhoto({
+      farmId: farm!.id,
+      glowFarmId: farm!.glowFarmId,
+      phase: 'pre_install',
+      checklistItemId: item.id,
+      checklistKey: item.key,
+      fileName,
+      localKey: fileName,
+      width: picked.width,
+      height: picked.height,
+      source,
+      syncState: 'queued',
+      attempts: 0,
+      capturedAt: now,
+      capturedBy: user?.id ?? 'unknown',
+      location: farm!.location,
+    });
+    await enqueue(saved.id);
+    if (farm!.preInstallStatus === 'assigned' || farm!.preInstallStatus === 'route_planned' || farm!.preInstallStatus === 'retake_required') {
+      await repo.updateFarm(farm!.id, { preInstallStatus: 'in_progress' }, user?.id);
+    }
+  }
+
+  async function onAdd(item: ChecklistItem, mode: 'camera' | 'import') {
+    setError(null);
+    setBusyItem(item.id + mode);
+    try {
+      let picks: Picked[] = [];
+      if (mode === 'camera') {
+        const p = await captureFromCamera();
+        if (p) picks = [p];
+      } else {
+        picks = await pickFromLibrary(true);
+      }
+      for (const pk of picks) await addOne(item, pk, mode === 'camera' ? 'camera' : 'import');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not add photo');
+    } finally {
+      setBusyItem(null);
+    }
+  }
+
+  function navigate() {
+    if (!farm!.location) {
+      setError('This farm has no coordinates yet.');
+      return;
+    }
+    const url = Platform.OS === 'ios' ? buildAppleMapsDestUrl(farm!.location, farm!.name) : buildGoogleMapsDestUrl(farm!.location);
+    Linking.openURL(url).catch(() => setError('Could not open maps.'));
+  }
+
+  async function submit() {
+    setSubmitting(true);
+    await repo.submitForReview(farm!.id, 'pre_install', user?.id ?? 'unknown');
+    setSubmitting(false);
+    // Auto-advance to the next incomplete assigned farm.
+    const next = (myFarms ?? []).find(
+      (f) => f.id !== farm!.id && !['approved', 'complete', 'photos_submitted', 'under_review'].includes(f.preInstallStatus),
+    );
+    router.replace((next ? `/(field)/farm/${next.id}` : '/(field)/farms') as never);
+  }
+
+  return (
+    <Screen scroll>
+      <Header title={farm.name} subtitle={farm.glowFarmId} onBack={() => router.back()} />
+      <Row justify="space-between" wrap gap={spacing.sm}>
+        <StatusPill label={st.label} tone={st.tone} />
+        {!ready ? <Badge label={`${missing.length} required left`} tone="warning" /> : <Badge label="Ready to submit" tone="success" />}
+      </Row>
+
+      <Spacer />
+      <Card>
+        <Txt variant="body">{farm.address}</Txt>
+        {farm.accessInstructions ? (
+          <Txt variant="caption" style={{ marginTop: 4 }}>
+            🔑 {farm.accessInstructions}
+          </Txt>
+        ) : null}
+        <Spacer size={spacing.sm} />
+        <Row gap={spacing.sm} wrap>
+          <Button small title="Navigate" icon="🧭" onPress={navigate} />
+          {canContact && farm.contact?.phone ? (
+            <>
+              <Button small variant="secondary" title="Call" icon="📞" onPress={() => Linking.openURL(`tel:${farm.contact!.phone}`)} />
+              <Button small variant="secondary" title="Text" icon="💬" onPress={() => Linking.openURL(`sms:${farm.contact!.phone}`)} />
+            </>
+          ) : null}
+          <Button small variant="ghost" title="Report problem" icon="⚠️" onPress={() => router.push(`/(field)/problem?farmId=${farm.id}` as never)} />
+        </Row>
+      </Card>
+
+      {farm.preInstallStatus === 'retake_required' ? (
+        <>
+          <Spacer size={spacing.sm} />
+          <Card style={{ borderColor: colors.dangerText }}>
+            <Txt variant="subtitle" color={colors.dangerText}>
+              ↻ Retakes requested
+            </Txt>
+            {list
+              .filter((p) => p.reviewState === 'rejected')
+              .slice(0, 4)
+              .map((p) => (
+                <Txt key={p.id} variant="caption">
+                  • {p.checklistKey}: {p.rejectionReason ? REJECT_REASON_LABEL[p.rejectionReason] : 'rejected'}
+                  {p.reviewNote ? ` — ${p.reviewNote}` : ''}
+                </Txt>
+              ))}
+          </Card>
+        </>
+      ) : null}
+
+      {error ? (
+        <Txt color={colors.dangerText} style={{ marginTop: spacing.sm }}>
+          {error}
+        </Txt>
+      ) : null}
+
+      <Divider />
+      <Txt variant="heading">Pre-install checklist</Txt>
+      <Spacer size={spacing.sm} />
+
+      {progress.map((pr) => (
+        <Card key={pr.item.id} style={{ marginBottom: spacing.sm }}>
+          <Row justify="space-between" align="flex-start" gap={spacing.sm}>
+            <View style={{ flex: 1 }}>
+              <Row gap={spacing.sm}>
+                <Txt variant="subtitle">{pr.item.label}</Txt>
+                {pr.item.required ? <Badge label="required" tone="neutral" /> : <Badge label="optional" tone="neutral" />}
+              </Row>
+              {pr.item.description ? <Txt variant="caption">{pr.item.description}</Txt> : null}
+            </View>
+            <Txt variant="title">{pr.satisfied ? '✅' : pr.needsRetake ? '↻' : pr.item.required ? '⬜️' : '➖'}</Txt>
+          </Row>
+
+          {pr.photos.length > 0 ? (
+            <>
+              <Spacer size={spacing.sm} />
+              <Row wrap gap={spacing.sm}>
+                {pr.photos.map((p) => (
+                  <View key={p.id} style={{ alignItems: 'center', width: 74 }}>
+                    <View style={{ borderWidth: p.reviewState === 'rejected' ? 2 : 0, borderColor: colors.dangerText, borderRadius: radius.md }}>
+                      <PhotoThumb localKey={p.localKey} size={70} />
+                    </View>
+                    <Badge label={SYNC_LABEL[p.syncState]} tone={syncTone(p.syncState)} />
+                  </View>
+                ))}
+              </Row>
+            </>
+          ) : null}
+
+          <Spacer size={spacing.sm} />
+          <Row gap={spacing.sm}>
+            <Button small title="Camera" icon="📷" loading={busyItem === pr.item.id + 'camera'} onPress={() => onAdd(pr.item, 'camera')} />
+            <Button small variant="secondary" title="Import" icon="🖼️" loading={busyItem === pr.item.id + 'import'} onPress={() => onAdd(pr.item, 'import')} />
+          </Row>
+        </Card>
+      ))}
+
+      <Spacer />
+      {!ready ? (
+        <Txt variant="caption" color={colors.warningText}>
+          Missing required: {missing.map((m) => m.label).join(', ')}
+        </Txt>
+      ) : null}
+      <Spacer size={spacing.sm} />
+      <Button title="Submit for review" icon="📤" onPress={submit} loading={submitting} disabled={!ready} full />
+      <Spacer size={spacing.xxxl} />
+    </Screen>
+  );
+}

@@ -1,0 +1,141 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { View } from 'react-native';
+import { Header } from '@/components/Header';
+import { PhotoThumb } from '@/components/PhotoThumb';
+import { overallStatus, preInstallStatus } from '@/components/statusHelpers';
+import { Button, Card, Divider, Row, Screen, SegmentedControl, Spacer, StatusPill, Txt } from '@/components/ui';
+import { repo } from '@/data';
+import type { ActivityEvent, Photo, Submission } from '@/domain/types';
+import { formatDate, relativeTime } from '@/lib/date';
+import { useCurrentUser } from '@/stores/authStore';
+import { useRepoQuery } from '@/stores/useRepoQuery';
+import { spacing } from '@/theme';
+
+function Info({ label, value }: { label: string; value?: string }) {
+  return (
+    <Row justify="space-between" gap={spacing.md} align="flex-start" style={{ paddingVertical: 4 }}>
+      <Txt variant="label">{label}</Txt>
+      <Txt variant="body" style={{ flex: 1 }} align="right" numberOfLines={3}>
+        {value ?? '—'}
+      </Txt>
+    </Row>
+  );
+}
+
+export default function AdminFarmDetail() {
+  const { farmId } = useLocalSearchParams<{ farmId: string }>();
+  const admin = useCurrentUser();
+  const { data: farm, refresh } = useRepoQuery(() => repo.getFarm(farmId!), [farmId], ['farms']);
+  const { data: users } = useRepoQuery(() => repo.listUsers(), []);
+  const { data: photos } = useRepoQuery(() => (farm ? repo.listPhotos(farm.id) : Promise.resolve([] as Photo[])), [farm?.id], ['photos']);
+  const { data: activity } = useRepoQuery(() => (farm ? repo.listActivity({ farmId: farm.id }) : Promise.resolve([] as ActivityEvent[])), [farm?.id], ['activity']);
+  const { data: subs } = useRepoQuery(() => (farm ? repo.listSubmissions({ farmId: farm.id }) : Promise.resolve([] as Submission[])), [farm?.id], ['submissions']);
+  const [assigning, setAssigning] = useState(false);
+
+  if (!farm) {
+    return (
+      <Screen>
+        <Header title="Farm" onBack={() => router.back()} />
+        <Txt>Loading…</Txt>
+      </Screen>
+    );
+  }
+
+  const photographers = (users ?? []).filter((u) => u.role === 'photographer');
+  const assignee = (users ?? []).find((u) => u.id === farm.assignedPhotographerId);
+  const pre = preInstallStatus(farm.preInstallStatus);
+  const ov = overallStatus(farm.overallStatus);
+  const pendingSub = (subs ?? []).find((s) => s.status === 'submitted' || s.status === 'under_review');
+
+  async function assignTo(uid: string) {
+    await repo.assignFarms([farm!.id], uid, 'photographer', admin?.id ?? 'system');
+    setAssigning(false);
+    refresh();
+  }
+
+  return (
+    <Screen scroll>
+      <Header title={farm.name} subtitle={farm.glowFarmId} onBack={() => router.back()} />
+      <Row gap={spacing.sm} wrap>
+        <StatusPill label={ov.label} tone={ov.tone} />
+        <StatusPill label={pre.label} tone={pre.tone} />
+      </Row>
+      <Spacer />
+      {pendingSub ? (
+        <>
+          <Button title="Open in review" icon="✅" onPress={() => router.push(`/(admin)/submission/${pendingSub.id}` as never)} full />
+          <Spacer />
+        </>
+      ) : null}
+
+      <Card>
+        <Info label="Glow Farm ID" value={farm.glowFarmId} />
+        <Info label="Hub Record" value={farm.hubRecordId} />
+        <Info label="Address" value={farm.address} />
+        <Info label="State / Region" value={`${farm.state}${farm.region ? ` · ${farm.region}` : ''}`} />
+        <Info label="Coordinates" value={farm.location ? `${farm.location.lat.toFixed(4)}, ${farm.location.lng.toFixed(4)}` : 'Missing'} />
+        <Info label="PTO status" value={farm.ptoStatus === 'reached' ? 'Reached' : 'Not reached'} />
+        <Info label="Scheduled" value={formatDate(farm.scheduledDate)} />
+        <Info label="Completed" value={formatDate(farm.completionDate)} />
+        <Info label="Photographer" value={assignee?.name} />
+        <Info label="Access" value={farm.accessInstructions} />
+        <Info label="Contact" value={farm.contact ? `${farm.contact.name ?? ''} ${farm.contact.phone ?? ''}`.trim() : undefined} />
+        <Info label="Notes" value={farm.notes} />
+        <Info label="Drive folder" value={farm.driveFolderUrl ?? 'Created on approval (later phase)'} />
+      </Card>
+
+      <Spacer />
+      <Button
+        title={assignee ? `Reassign · currently ${assignee.name.split(' ')[0]}` : 'Assign photographer'}
+        variant="secondary"
+        icon="🧭"
+        onPress={() => setAssigning((a) => !a)}
+        full
+      />
+      {assigning ? (
+        <>
+          <Spacer size={spacing.sm} />
+          <SegmentedControl
+            options={photographers.map((p) => ({ value: p.id, label: p.name.split(' ')[0] }))}
+            value={farm.assignedPhotographerId ?? ''}
+            onChange={assignTo}
+          />
+        </>
+      ) : null}
+
+      {photos && photos.length > 0 ? (
+        <>
+          <Divider />
+          <Txt variant="heading">Photos ({photos.length})</Txt>
+          <Spacer size={spacing.sm} />
+          <Row wrap gap={spacing.sm}>
+            {photos.map((p) => (
+              <View key={p.id} style={{ alignItems: 'center', width: 80 }}>
+                <PhotoThumb localKey={p.localKey} size={76} />
+                <Txt variant="caption" numberOfLines={1}>
+                  {p.checklistKey}
+                </Txt>
+              </View>
+            ))}
+          </Row>
+        </>
+      ) : null}
+
+      <Divider />
+      <Txt variant="heading">Activity history</Txt>
+      <Spacer size={spacing.sm} />
+      {(activity ?? []).map((a) => (
+        <Row key={a.id} gap={spacing.sm} align="flex-start" style={{ marginBottom: spacing.sm }}>
+          <Txt variant="caption">•</Txt>
+          <View style={{ flex: 1 }}>
+            <Txt variant="body">{a.message}</Txt>
+            <Txt variant="caption">
+              {a.byUserName ?? a.byUserId} · {relativeTime(a.at)}
+            </Txt>
+          </View>
+        </Row>
+      ))}
+    </Screen>
+  );
+}

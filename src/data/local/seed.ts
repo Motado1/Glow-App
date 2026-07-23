@@ -1,0 +1,295 @@
+/**
+ * Demo seed data. Deterministic (seeded PRNG) so the dataset is stable across
+ * reloads until an explicit reset. ~55 farms across two states with a realistic
+ * spread of statuses, a few field problems, and a pre-populated review queue.
+ */
+import { deriveOverallFromPreInstall, type PreInstallStatus } from '@/domain/status';
+import type {
+  ActivityEvent,
+  AppNotification,
+  Farm,
+  Photo,
+  Problem,
+  Submission,
+  User,
+} from '@/domain/types';
+import { DEFAULT_PRE_INSTALL_CHECKLIST } from '@/features/photos/checklist';
+import { buildPhotoFileName } from '@/features/photos/fileName';
+
+export interface SeedData {
+  users: User[];
+  farms: Farm[];
+  photos: Photo[];
+  submissions: Submission[];
+  problems: Problem[];
+  activity: ActivityEvent[];
+  notifications: AppNotification[];
+}
+
+export const SEED_USERS: User[] = [
+  { id: 'u-jared', name: 'Jared (Admin)', email: 'jared@glow.example', role: 'admin', active: true },
+  { id: 'u-dan', name: 'Dan Whitfield', email: 'dan@glow.example', role: 'photographer', phone: '+1 720 555 0142', homeBase: 'Denver, CO', active: true },
+  { id: 'u-maria', name: 'Maria Ortiz', email: 'maria@glow.example', role: 'photographer', phone: '+1 316 555 0188', homeBase: 'Wichita, KS', active: true },
+  { id: 'u-sam', name: 'Sam Reeves', email: 'sam@glow.example', role: 'installer', phone: '+1 720 555 0170', homeBase: 'Denver, CO', active: true },
+  { id: 'u-priya', name: 'Priya Nair', email: 'priya@glow.example', role: 'reviewer', active: true },
+];
+
+function mulberry32(seed: number): () => number {
+  let a = seed;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+interface StateCfg {
+  code: string;
+  name: string;
+  center: { lat: number; lng: number };
+  spread: number;
+  cities: string[];
+  count: number;
+  photographerId: string;
+}
+
+const STATES: StateCfg[] = [
+  {
+    code: 'CO',
+    name: 'Colorado',
+    center: { lat: 39.9, lng: -104.9 },
+    spread: 1.3,
+    cities: ['Denver', 'Aurora', 'Boulder', 'Longmont', 'Greeley', 'Fort Collins', 'Loveland', 'Castle Rock', 'Parker', 'Brighton', 'Windsor', 'Berthoud'],
+    count: 43,
+    photographerId: 'u-dan',
+  },
+  {
+    code: 'KS',
+    name: 'Kansas',
+    center: { lat: 37.7, lng: -97.3 },
+    spread: 1.1,
+    cities: ['Wichita', 'Hutchinson', 'Newton', 'Derby', 'Andover', 'El Dorado', 'Augusta', 'Haysville'],
+    count: 12,
+    photographerId: 'u-maria',
+  },
+];
+
+const STREETS = ['County Rd 14', 'Prairie View Rd', 'Ranch House Ln', 'Sunflower Ave', 'Meadowlark Dr', 'Old Mill Rd', 'Harvest Way', 'Cottonwood Ln', 'Ridgeline Rd', 'Homestead Dr'];
+
+interface Bucket {
+  pre: PreInstallStatus;
+  assigned: boolean;
+  weight: number;
+}
+const BUCKETS: Bucket[] = [
+  { pre: 'ready_for_assignment', assigned: false, weight: 22 },
+  { pre: 'assigned', assigned: true, weight: 16 },
+  { pre: 'route_planned', assigned: true, weight: 8 },
+  { pre: 'in_progress', assigned: true, weight: 14 },
+  { pre: 'photos_submitted', assigned: true, weight: 8 },
+  { pre: 'under_review', assigned: true, weight: 6 },
+  { pre: 'retake_required', assigned: true, weight: 5 },
+  { pre: 'approved', assigned: true, weight: 4 },
+  { pre: 'complete', assigned: true, weight: 3 },
+  { pre: 'unable_to_access', assigned: true, weight: 3 },
+  { pre: 'address_problem', assigned: true, weight: 2 },
+  { pre: 'customer_contact_required', assigned: true, weight: 2 },
+];
+const BUCKET_TOTAL = BUCKETS.reduce((s, b) => s + b.weight, 0);
+
+function pickBucket(r: number): Bucket {
+  let x = r * BUCKET_TOTAL;
+  for (const b of BUCKETS) {
+    if (x < b.weight) return b;
+    x -= b.weight;
+  }
+  return BUCKETS[0];
+}
+
+function iso(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString();
+}
+
+export function buildSeed(): SeedData {
+  const rng = mulberry32(20260723);
+  const farms: Farm[] = [];
+  const photos: Photo[] = [];
+  const submissions: Submission[] = [];
+  const problems: Problem[] = [];
+  const activity: ActivityEvent[] = [];
+  const notifications: AppNotification[] = [];
+  const now = new Date().toISOString();
+  let glowSeq = 10001;
+  let reviewQueueSeeded = 0;
+
+  for (const st of STATES) {
+    for (let i = 0; i < st.count; i++) {
+      const bucket = pickBucket(rng());
+      const idNum = String(i + 1).padStart(3, '0');
+      const id = `farm-${st.code}-${idNum}`;
+      const glowFarmId = `GF-${glowSeq++}`;
+      const city = st.cities[Math.floor(rng() * st.cities.length)];
+      const street = STREETS[Math.floor(rng() * STREETS.length)];
+      const houseNo = 100 + Math.floor(rng() * 8900);
+      const lat = st.center.lat + (rng() - 0.5) * st.spread;
+      const lng = st.center.lng + (rng() - 0.5) * st.spread;
+      // ~6% of farms have no coordinates yet (exercises the route "skipped" path)
+      const hasLoc = rng() > 0.06;
+
+      const assigned = bucket.assigned;
+      const pre = bucket.pre;
+      const overall = deriveOverallFromPreInstall(pre, 'pre_install_needed');
+      const scheduledOffset = Math.floor(rng() * 9) - 2; // -2..+6 days (some overdue)
+      const done = pre === 'approved' || pre === 'complete';
+
+      const farm: Farm = {
+        id,
+        glowFarmId,
+        hubRecordId: `HUB-${glowFarmId.slice(3)}`,
+        name: `${['Circle', 'Twin', 'High', 'Clear', 'Golden', 'Silver', 'Rocky', 'Green', 'Sunrise', 'Prairie'][Math.floor(rng() * 10)]} ${['Creek', 'Ridge', 'Valley', 'Acres', 'Fields', 'Meadows', 'Hollow', 'Springs'][Math.floor(rng() * 8)]} Farm`,
+        address: `${houseNo} ${street}, ${city}, ${st.code}`,
+        location: hasLoc ? { lat, lng } : undefined,
+        state: st.name,
+        region: `${st.code} ${i < st.count / 2 ? 'North' : 'South'}`,
+        tripId: assigned ? `${st.code}-trip-1` : undefined,
+        assignedPhotographerId: assigned ? st.photographerId : undefined,
+        overallStatus: overall,
+        preInstallStatus: pre,
+        ptoStatus: 'not_reached',
+        scheduledDate: assigned ? iso(scheduledOffset).slice(0, 10) : undefined,
+        completionDate: done ? now : undefined,
+        accessInstructions: rng() > 0.6 ? 'Gate code 4412. Dog on property — call ahead.' : undefined,
+        contact:
+          assigned && rng() > 0.5
+            ? { name: `${city} Owner`, phone: '+1 555 010 ' + String(1000 + Math.floor(rng() * 8999)) }
+            : undefined,
+        notes: pre === 'address_problem' ? 'Address pin lands in an empty field — verify with customer.' : undefined,
+        createdAt: now,
+        updatedAt: now,
+      };
+      farms.push(farm);
+
+      // Field problems for problem-status farms.
+      if (pre === 'unable_to_access' || pre === 'address_problem' || pre === 'customer_contact_required') {
+        problems.push({
+          id: `prob-${id}`,
+          farmId: id,
+          glowFarmId,
+          type:
+            pre === 'unable_to_access'
+              ? 'locked_gate'
+              : pre === 'address_problem'
+                ? 'address_inaccurate'
+                : 'no_one_home',
+          note: 'Reported from the field.',
+          reportedBy: st.photographerId,
+          reportedAt: iso(-1),
+          resolved: false,
+        });
+        notifications.push({
+          id: `ntf-prob-${id}`,
+          userId: 'u-jared',
+          type: 'problem_reported',
+          title: 'Problem reported',
+          body: `${glowFarmId} · ${farm.name}`,
+          farmId: id,
+          glowFarmId,
+          read: false,
+          createdAt: iso(-1),
+        });
+      }
+
+      // Pre-populate the review queue for a few submitted/under-review/retake farms.
+      const wantsPhotos =
+        (pre === 'photos_submitted' || pre === 'under_review' || pre === 'retake_required') &&
+        reviewQueueSeeded < 6;
+      if (wantsPhotos) {
+        reviewQueueSeeded++;
+        const items = DEFAULT_PRE_INSTALL_CHECKLIST.filter((c) => c.required);
+        const photoIds: string[] = [];
+        items.forEach((item, idx) => {
+          const rejected = pre === 'retake_required' && idx === 1;
+          const pid = `photo-${id}-${item.key}`;
+          photoIds.push(pid);
+          photos.push({
+            id: pid,
+            farmId: id,
+            glowFarmId,
+            phase: 'pre_install',
+            checklistItemId: item.id,
+            checklistKey: item.key,
+            fileName: buildPhotoFileName({ glowFarmId, phase: 'pre_install', checklistKey: item.key, index: 1, dateIso: now }),
+            localKey: `seed/${id}/${item.key}.jpg`, // no binary; UI shows a placeholder tile
+            source: 'camera',
+            syncState: 'uploaded',
+            attempts: 0,
+            reviewState: rejected ? 'rejected' : 'pending',
+            rejectionReason: rejected ? 'blurry' : undefined,
+            reviewNote: rejected ? 'Panel label unreadable — please retake in better light.' : undefined,
+            capturedAt: iso(-1),
+            capturedBy: st.photographerId,
+            location: farm.location,
+          });
+        });
+        submissions.push({
+          id: `sub-${id}`,
+          farmId: id,
+          glowFarmId,
+          phase: 'pre_install',
+          submittedBy: st.photographerId,
+          submittedAt: iso(-1),
+          status: pre === 'photos_submitted' ? 'submitted' : pre === 'under_review' ? 'under_review' : 'retake_required',
+          photoIds,
+        });
+        activity.push({
+          id: `act-sub-${id}`,
+          farmId: id,
+          glowFarmId,
+          kind: 'submitted',
+          message: `Submitted ${photoIds.length} photos for review`,
+          byUserId: st.photographerId,
+          at: iso(-1),
+        });
+        notifications.push({
+          id: `ntf-sub-${id}`,
+          userId: 'u-jared',
+          type: 'photos_submitted',
+          title: 'Photos submitted for review',
+          body: `${glowFarmId} · ${farm.name}`,
+          farmId: id,
+          glowFarmId,
+          read: false,
+          createdAt: iso(-1),
+        });
+      }
+
+      // A creation activity entry for every farm.
+      activity.push({
+        id: `act-new-${id}`,
+        farmId: id,
+        glowFarmId,
+        kind: 'imported',
+        message: `Farm imported from Hub (${farm.address})`,
+        byUserId: 'u-jared',
+        at: farm.createdAt,
+      });
+    }
+  }
+
+  // A welcome assignment notification for Dan.
+  notifications.push({
+    id: 'ntf-assign-dan',
+    userId: 'u-dan',
+    type: 'new_assignment',
+    title: 'New assignment: Colorado',
+    body: `${farms.filter((f) => f.assignedPhotographerId === 'u-dan').length} farms assigned to you`,
+    read: false,
+    createdAt: iso(-2),
+  });
+
+  return { users: SEED_USERS, farms, photos, submissions, problems, activity, notifications };
+}
