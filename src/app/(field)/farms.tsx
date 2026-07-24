@@ -3,8 +3,9 @@ import { useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
 import { FarmCard } from '@/components/FarmCard';
 import { Header } from '@/components/Header';
+import { SignOutButton } from '@/components/SignOutButton';
 import { SyncChip } from '@/components/SyncChip';
-import { EmptyState, Screen, SegmentedControl, Spacer } from '@/components/ui';
+import { EmptyState, Row, Screen, SegmentedControl, Spacer } from '@/components/ui';
 import { repo } from '@/data';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
@@ -48,7 +49,11 @@ export default function FieldFarms() {
 
   return (
     <Screen>
-      <Header title={isInstaller ? 'My installations' : 'My farms'} subtitle={`${list.length} shown`} right={<SyncChip />} />
+      <Header
+        title={isInstaller ? 'My installations' : 'My farms'}
+        subtitle={`${list.length} shown`}
+        right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
+      />
       <SegmentedControl options={isInstaller ? INSTALLER_FILTERS : FILTERS} value={f} onChange={setF} />
       <Spacer size={spacing.sm} />
       <FlatList

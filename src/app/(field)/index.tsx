@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FarmCard } from '@/components/FarmCard';
 import { Header } from '@/components/Header';
+import { SignOutButton } from '@/components/SignOutButton';
 import { SyncChip } from '@/components/SyncChip';
 import { Button, Card, Divider, EmptyState, Row, Screen, Spacer, Stat, Txt } from '@/components/ui';
 import { repo } from '@/data';
@@ -37,7 +38,7 @@ export default function Today() {
 
   return (
     <Screen scroll>
-      <Header title={`${primaryState} Assignment`} subtitle={user?.name} right={<SyncChip />} />
+      <Header title={`${primaryState} Assignment`} subtitle={user?.name} right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>} />
 
       {total === 0 ? (
         <EmptyState icon="🎉" title="No farms assigned" subtitle="You're all caught up — check back later." />
@@ -103,7 +104,7 @@ function InstallerToday({ name, state, farms }: { name?: string; state: string; 
 
   return (
     <Screen scroll>
-      <Header title={`${state} Installations`} subtitle={name} right={<SyncChip />} />
+      <Header title={`${state} Installations`} subtitle={name} right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>} />
       {total === 0 ? (
         <EmptyState icon="🎉" title="No installations assigned" subtitle="You're all caught up — check back later." />
       ) : (
