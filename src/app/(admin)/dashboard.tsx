@@ -33,7 +33,12 @@ export default function Dashboard() {
     const traveling = new Set(
       f.filter((x) => x.assignedPhotographerId && x.preInstallStatus === 'in_progress').map((x) => x.assignedPhotographerId),
     ).size;
-    return { needsPre, assigned, awaitingReview, retakes, overdue, approvedToday, traveling };
+    const ptoReached = f.filter((x) => x.ptoStatus === 'reached' && x.boxInstallStatus !== 'complete').length;
+    const readyForInstall = f.filter((x) => x.boxInstallStatus === 'ready_for_assignment').length;
+    const installing = f.filter((x) => x.assignedInstallerId && x.boxInstallStatus !== 'complete').length;
+    const notConnected = f.filter((x) => x.boxInstallStatus === 'connectivity_failed').length;
+    const fieldComplete = f.filter((x) => x.overallStatus === 'field_ops_complete').length;
+    return { needsPre, assigned, awaitingReview, retakes, overdue, approvedToday, traveling, ptoReached, readyForInstall, installing, notConnected, fieldComplete };
   }, [f, subs, today]);
 
   const byState = useMemo(() => {
@@ -51,7 +56,7 @@ export default function Dashboard() {
     <Screen scroll>
       <Header
         title={`Hi, ${user?.name?.split(' ')[0] ?? 'there'}`}
-        subtitle="Pre-install field operations"
+        subtitle="Field operations"
         right={<SyncChip />}
       />
 
@@ -64,6 +69,17 @@ export default function Dashboard() {
         <Stat label="Approved today" value={stats.approvedToday} tone="success" />
         <Stat label="Photographers traveling" value={stats.traveling} tone="info" />
         <Stat label="Open problems" value={probs.length} tone="danger" onPress={() => router.push('/(admin)/farms?preset=problems' as never)} />
+      </Row>
+
+      <Spacer size={spacing.lg} />
+      <Txt variant="heading">Box installation</Txt>
+      <Spacer size={spacing.sm} />
+      <Row wrap gap={spacing.sm}>
+        <Stat label="PTO reached" value={stats.ptoReached} tone="info" />
+        <Stat label="Ready for install" value={stats.readyForInstall} tone="info" onPress={() => router.push('/(admin)/assignments')} />
+        <Stat label="Installs in progress" value={stats.installing} tone="progress" />
+        <Stat label="Installed, not connected" value={stats.notConnected} tone="danger" />
+        <Stat label="Field ops complete" value={stats.fieldComplete} tone="success" />
       </Row>
 
       <Spacer size={spacing.lg} />

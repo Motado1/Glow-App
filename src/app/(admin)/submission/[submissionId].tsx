@@ -26,6 +26,11 @@ export default function SubmissionReview() {
     () => (allPhotos ?? []).filter((p) => submission?.photoIds.includes(p.id)),
     [allPhotos, submission],
   );
+  const { data: boxInstall } = useRepoQuery(
+    () => (submission?.phase === 'post_install' ? repo.getBoxInstallation(submission.farmId) : Promise.resolve(null)),
+    [submission?.farmId, submission?.phase],
+    ['box_installations'],
+  );
 
   const [retake, setRetake] = useState<Set<string>>(new Set());
   const [reason, setReason] = useState<RejectReason>('blurry');
@@ -72,7 +77,28 @@ export default function SubmissionReview() {
 
   return (
     <Screen scroll>
-      <Header title={`Review ${submission.glowFarmId}`} subtitle={`${photos.length} photos`} onBack={() => router.back()} />
+      <Header
+        title={`Review ${submission.glowFarmId}`}
+        subtitle={`${submission.phase === 'post_install' ? 'Post-install' : 'Pre-install'} · ${photos.length} photos`}
+        onBack={() => router.back()}
+      />
+      {boxInstall ? (
+        <Card style={{ marginBottom: spacing.md }}>
+          <Txt variant="subtitle">Monitoring box</Txt>
+          <Txt variant="caption">
+            Serial {boxInstall.boxSerial} · {boxInstall.networkType || 'network n/a'}
+          </Txt>
+          <Txt variant="caption">
+            Connectivity:{' '}
+            {boxInstall.connectivityTest.status === 'passed'
+              ? 'Passed ✓'
+              : boxInstall.connectivityTest.status === 'failed'
+                ? 'Failed ✗'
+                : 'Not tested'}
+            {boxInstall.problems ? ` · Deficiency: ${boxInstall.problems}` : ''}
+          </Txt>
+        </Card>
+      ) : null}
 
       <Txt variant="label">Tap a photo to mark it for retake</Txt>
       <Spacer size={spacing.sm} />

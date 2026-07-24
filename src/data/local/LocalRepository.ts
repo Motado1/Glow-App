@@ -6,14 +6,18 @@
  */
 import type { DataRepository } from '@/data/repository';
 import {
+  deriveOverallFromBoxInstall,
   deriveOverallFromPreInstall,
   isPreInstallProblem,
+  type BoxInstallStatus,
   type PreInstallStatus,
 } from '@/domain/status';
 import type {
   ActivityEvent,
   ActivityFilter,
   AppNotification,
+  BoxInstallation,
+  BoxInstallationInput,
   EntityKind,
   Farm,
   FarmFilter,
@@ -46,6 +50,7 @@ export class LocalRepository implements DataRepository {
   private activity: ActivityEvent[] = [];
   private notifications: AppNotification[] = [];
   private users: User[] = [];
+  private boxInstallations: BoxInstallation[] = [];
   private loaded = false;
   private listeners = new Map<EntityKind, Set<() => void>>();
 
@@ -64,6 +69,7 @@ export class LocalRepository implements DataRepository {
       this.activity = await readJson<ActivityEvent[]>(KEYS.activity, []);
       this.notifications = await readJson<AppNotification[]>(KEYS.notifications, []);
       this.users = await readJson<User[]>(KEYS.users, []);
+      this.boxInstallations = await readJson<BoxInstallation[]>(KEYS.boxInstallations, []);
     }
     this.loaded = true;
   }
@@ -71,7 +77,7 @@ export class LocalRepository implements DataRepository {
   async reset(): Promise<void> {
     await this.applySeed();
     this.loaded = true;
-    (['farms', 'photos', 'submissions', 'problems', 'activity', 'notifications'] as EntityKind[]).forEach(
+    (['farms', 'photos', 'submissions', 'problems', 'activity', 'notifications', 'box_installations'] as EntityKind[]).forEach(
       (e) => this.emit(e),
     );
   }
@@ -85,6 +91,7 @@ export class LocalRepository implements DataRepository {
     this.problems = seed.problems;
     this.activity = seed.activity;
     this.notifications = seed.notifications;
+    this.boxInstallations = seed.boxInstallations;
     await Promise.all([
       writeJson(KEYS.users, this.users),
       writeJson(KEYS.farms, this.farms),
@@ -93,6 +100,7 @@ export class LocalRepository implements DataRepository {
       writeJson(KEYS.problems, this.problems),
       writeJson(KEYS.activity, this.activity),
       writeJson(KEYS.notifications, this.notifications),
+      writeJson(KEYS.boxInstallations, this.boxInstallations),
       writeJson(KEYS.seeded, true),
     ]);
   }
@@ -275,11 +283,18 @@ export class LocalRepository implements DataRepository {
     for (const fid of farmIds) {
       const farm = this.farms.find((f) => f.id === fid);
       if (!farm) continue;
-      if (role === 'photographer') farm.assignedPhotographerId = userId;
-      else farm.assignedInstallerId = userId;
-      if (farm.preInstallStatus === 'not_ready' || farm.preInstallStatus === 'ready_for_assignment') {
-        farm.preInstallStatus = 'assigned';
-        farm.overallStatus = deriveOverallFromPreInstall('assigned', farm.overallStatus);
+      if (role === 'photographer') {
+        farm.assignedPhotographerId = userId;
+        if (farm.preInstallStatus === 'not_ready' || farm.preInstallStatus === 'ready_for_assignment') {
+          farm.preInstallStatus = 'assigned';
+          farm.overallStatus = deriveOverallFromPreInstall('assigned', farm.overallStatus);
+        }
+      } else {
+        farm.assignedInstallerId = userId;
+        if (farm.boxInstallStatus === 'ready_for_assignment' || farm.boxInstallStatus === 'pto_confirmed') {
+          farm.boxInstallStatus = 'assigned';
+          farm.overallStatus = deriveOverallFromBoxInstall('assigned', farm.overallStatus);
+        }
       }
       farm.updatedAt = nowIso();
       await this.addActivity({
@@ -366,8 +381,13 @@ export class LocalRepository implements DataRepository {
       photoIds,
     };
     this.submissions.push(submission);
-    farm.preInstallStatus = 'photos_submitted';
-    farm.overallStatus = deriveOverallFromPreInstall('photos_submitted', farm.overallStatus);
+    if (phase === 'post_install') {
+      farm.boxInstallStatus = 'post_install_photos_submitted';
+      farm.overallStatus = deriveOverallFromBoxInstall('post_install_photos_submitted', farm.overallStatus);
+    } else {
+      farm.preInstallStatus = 'photos_submitted';
+      farm.overallStatus = deriveOverallFromPreInstall('photos_submitted', farm.overallStatus);
+    }
     farm.updatedAt = nowIso();
     await Promise.all([
       writeJson(KEYS.submissions, this.submissions),
@@ -433,15 +453,25 @@ export class LocalRepository implements DataRepository {
       this.photos = this.photos.map((p) =>
         sub.photoIds.includes(p.id) ? { ...p, reviewState: 'approved' } : p,
       );
-      farm.preInstallStatus = 'approved';
-      farm.overallStatus = deriveOverallFromPreInstall('approved', farm.overallStatus);
+      if (sub.phase === 'post_install') {
+        farm.boxInstallStatus = 'complete';
+        farm.overallStatus = deriveOverallFromBoxInstall('complete', farm.overallStatus);
+        const inst = this.boxInstallations.find((b) => b.farmId === farm.id);
+        if (inst) {
+          inst.finalApproved = true;
+          inst.updatedAt = now;
+        }
+      } else {
+        farm.preInstallStatus = 'approved';
+        farm.overallStatus = deriveOverallFromPreInstall('approved', farm.overallStatus);
+      }
       farm.completionDate = now;
       farm.updatedAt = now;
       await this.addActivity({
         farmId: farm.id,
         glowFarmId: farm.glowFarmId,
         kind: 'approved',
-        message: 'Pre-install photos approved',
+        message: sub.phase === 'post_install' ? 'Post-install approved — field operations complete' : 'Pre-install photos approved',
         byUserId,
       });
       await this.pushNotification({
@@ -461,14 +491,19 @@ export class LocalRepository implements DataRepository {
           ? { ...p, reviewState: 'rejected', rejectionReason: decision.reason, reviewNote: decision.note }
           : p,
       );
-      farm.preInstallStatus = 'retake_required';
-      farm.overallStatus = deriveOverallFromPreInstall('retake_required', farm.overallStatus);
+      if (sub.phase === 'post_install') {
+        farm.boxInstallStatus = 'correction_required';
+        farm.overallStatus = deriveOverallFromBoxInstall('correction_required', farm.overallStatus);
+      } else {
+        farm.preInstallStatus = 'retake_required';
+        farm.overallStatus = deriveOverallFromPreInstall('retake_required', farm.overallStatus);
+      }
       farm.updatedAt = now;
       await this.addActivity({
         farmId: farm.id,
         glowFarmId: farm.glowFarmId,
         kind: 'retake_requested',
-        message: `Retake requested (${decision.reason})${decision.note ? `: ${decision.note}` : ''}`,
+        message: `${sub.phase === 'post_install' ? 'Correction' : 'Retake'} requested (${decision.reason})${decision.note ? `: ${decision.note}` : ''}`,
         byUserId,
       });
       await this.pushNotification({
@@ -485,10 +520,12 @@ export class LocalRepository implements DataRepository {
       writeJson(KEYS.submissions, this.submissions),
       writeJson(KEYS.photos, this.photos),
       writeJson(KEYS.farms, this.farms),
+      writeJson(KEYS.boxInstallations, this.boxInstallations),
     ]);
     this.emit('submissions');
     this.emit('photos');
     this.emit('farms');
+    this.emit('box_installations');
     return sub;
   }
 
@@ -640,5 +677,80 @@ export class LocalRepository implements DataRepository {
     );
     await writeJson(KEYS.notifications, this.notifications);
     this.emit('notifications');
+  }
+
+  /* --------------------------- box installation -------------------------- */
+
+  async markPtoReached(farmId: string, byUserId: string): Promise<Farm> {
+    await this.ensure();
+    const farm = this.farms.find((f) => f.id === farmId);
+    if (!farm) throw new Error(`Farm ${farmId} not found`);
+    farm.ptoStatus = 'reached';
+    farm.boxInstallStatus = 'ready_for_assignment';
+    farm.overallStatus = deriveOverallFromBoxInstall('ready_for_assignment', farm.overallStatus);
+    farm.updatedAt = nowIso();
+    await writeJson(KEYS.farms, this.farms);
+    await this.addActivity({
+      farmId: farm.id,
+      glowFarmId: farm.glowFarmId,
+      kind: 'status_change',
+      message: 'PTO reached — ready for box installation',
+      byUserId,
+    });
+    for (const admin of this.admins()) {
+      await this.pushNotification({
+        userId: admin.id,
+        type: 'pto_reached',
+        title: 'PTO reached',
+        body: `${farm.glowFarmId} · ${farm.name}`,
+        farmId: farm.id,
+        glowFarmId: farm.glowFarmId,
+      });
+    }
+    this.emit('farms');
+    return farm;
+  }
+
+  async getBoxInstallation(farmId: string): Promise<BoxInstallation | null> {
+    await this.ensure();
+    return this.boxInstallations.find((b) => b.farmId === farmId) ?? null;
+  }
+
+  async listBoxInstallations(): Promise<BoxInstallation[]> {
+    await this.ensure();
+    return [...this.boxInstallations];
+  }
+
+  async saveBoxInstallation(input: BoxInstallationInput, byUserId: string): Promise<BoxInstallation> {
+    await this.ensure();
+    const now = nowIso();
+    let rec = this.boxInstallations.find((b) => b.farmId === input.farmId);
+    if (rec) {
+      Object.assign(rec, input, { updatedAt: now });
+    } else {
+      rec = { ...input, id: uuid(), createdAt: now, updatedAt: now };
+      this.boxInstallations.push(rec);
+    }
+    const farm = this.farms.find((f) => f.id === input.farmId);
+    if (farm) {
+      const boxStatus: BoxInstallStatus =
+        rec.connectivityTest.status === 'failed' ? 'connectivity_failed' : 'hardware_installed';
+      farm.boxSerial = rec.boxSerial;
+      farm.boxInstallStatus = boxStatus;
+      farm.overallStatus = deriveOverallFromBoxInstall(boxStatus, farm.overallStatus);
+      farm.updatedAt = now;
+      await writeJson(KEYS.farms, this.farms);
+      this.emit('farms');
+    }
+    await writeJson(KEYS.boxInstallations, this.boxInstallations);
+    await this.addActivity({
+      farmId: input.farmId,
+      glowFarmId: input.glowFarmId,
+      kind: 'note',
+      message: `Box installation recorded (serial ${rec.boxSerial}, connectivity ${rec.connectivityTest.status})`,
+      byUserId,
+    });
+    this.emit('box_installations');
+    return rec;
   }
 }

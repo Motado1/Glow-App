@@ -3,17 +3,24 @@
  * reloads until an explicit reset. ~55 farms across two states with a realistic
  * spread of statuses, a few field problems, and a pre-populated review queue.
  */
-import { deriveOverallFromPreInstall, type PreInstallStatus } from '@/domain/status';
+import {
+  deriveOverallFromBoxInstall,
+  deriveOverallFromPreInstall,
+  type BoxInstallStatus,
+  type PreInstallStatus,
+} from '@/domain/status';
 import type {
   ActivityEvent,
   AppNotification,
+  BoxInstallation,
+  ConnectivityStatus,
   Farm,
   Photo,
   Problem,
   Submission,
   User,
 } from '@/domain/types';
-import { DEFAULT_PRE_INSTALL_CHECKLIST } from '@/features/photos/checklist';
+import { DEFAULT_POST_INSTALL_CHECKLIST, DEFAULT_PRE_INSTALL_CHECKLIST } from '@/features/photos/checklist';
 import { buildPhotoFileName } from '@/features/photos/fileName';
 
 export interface SeedData {
@@ -24,6 +31,7 @@ export interface SeedData {
   problems: Problem[];
   activity: ActivityEvent[];
   notifications: AppNotification[];
+  boxInstallations: BoxInstallation[];
 }
 
 export const SEED_USERS: User[] = [
@@ -122,6 +130,7 @@ export function buildSeed(): SeedData {
   const problems: Problem[] = [];
   const activity: ActivityEvent[] = [];
   const notifications: AppNotification[] = [];
+  const boxInstallations: BoxInstallation[] = [];
   const now = new Date().toISOString();
   let glowSeq = 10001;
   let reviewQueueSeeded = 0;
@@ -280,6 +289,164 @@ export function buildSeed(): SeedData {
     }
   }
 
+  // ---- Box-installation-stage farms (Phase 2 demo data) ----
+  const boxCities = ['Denver', 'Boulder', 'Longmont', 'Greeley', 'Loveland', 'Parker'];
+  const boxPlan: {
+    box: BoxInstallStatus;
+    installer?: string;
+    connectivity?: ConnectivityStatus;
+    withPhotos?: boolean;
+    complete?: boolean;
+  }[] = [
+    { box: 'ready_for_assignment' },
+    { box: 'ready_for_assignment' },
+    { box: 'ready_for_assignment' },
+    { box: 'ready_for_assignment' },
+    { box: 'assigned', installer: 'u-sam' },
+    { box: 'assigned', installer: 'u-sam' },
+    { box: 'assigned', installer: 'u-sam' },
+    { box: 'hardware_installed', installer: 'u-sam', connectivity: 'passed' },
+    { box: 'hardware_installed', installer: 'u-sam', connectivity: 'passed' },
+    { box: 'connectivity_failed', installer: 'u-sam', connectivity: 'failed' },
+    { box: 'post_install_photos_submitted', installer: 'u-sam', connectivity: 'passed', withPhotos: true },
+    { box: 'complete', installer: 'u-sam', connectivity: 'passed', complete: true },
+  ];
+  boxPlan.forEach((plan, i) => {
+    const id = `farm-BOX-${String(i + 1).padStart(3, '0')}`;
+    const glowFarmId = `GF-${glowSeq++}`;
+    const city = boxCities[i % boxCities.length];
+    const farm: Farm = {
+      id,
+      glowFarmId,
+      hubRecordId: `HUB-${glowFarmId.slice(3)}`,
+      name: `${['Mesa', 'Boulder', 'Prairie', 'Foothill', 'Aspen', 'Cedar'][i % 6]} ${['Solar Farm', 'Ranch', 'Acres', 'Fields'][i % 4]}`,
+      address: `${200 + Math.floor(rng() * 7000)} ${STREETS[i % STREETS.length]}, ${city}, CO`,
+      location: { lat: 39.9 + (rng() - 0.5) * 1.0, lng: -104.9 + (rng() - 0.5) * 1.0 },
+      state: 'Colorado',
+      region: 'CO North',
+      tripId: 'CO-install-1',
+      assignedPhotographerId: 'u-dan',
+      assignedInstallerId: plan.installer,
+      overallStatus: deriveOverallFromBoxInstall(plan.box, 'box_install_ready'),
+      preInstallStatus: 'complete',
+      ptoStatus: 'reached',
+      boxInstallStatus: plan.box,
+      boxSerial: plan.connectivity ? `GLOW-BOX-${glowFarmId.slice(3)}` : undefined,
+      equipmentDetails: '5.2 kW system · SolarEdge inverter',
+      scheduledDate: iso(Math.floor(rng() * 6)).slice(0, 10),
+      completionDate: plan.complete ? now : undefined,
+      createdAt: now,
+      updatedAt: now,
+    };
+    farms.push(farm);
+
+    activity.push({
+      id: `act-box-${id}`,
+      farmId: id,
+      glowFarmId,
+      kind: 'status_change',
+      message: 'PTO reached — ready for box installation',
+      byUserId: 'u-jared',
+      at: iso(-3),
+    });
+
+    if (plan.connectivity) {
+      boxInstallations.push({
+        id: `inst-${id}`,
+        farmId: id,
+        glowFarmId,
+        boxSerial: `GLOW-BOX-${glowFarmId.slice(3)}`,
+        installerId: plan.installer ?? 'u-sam',
+        installedAt: iso(-1),
+        location: farm.location,
+        boxVersion: 'v3.2',
+        powerSupply: '120V AC adapter',
+        electricalSystemType: 'Split-phase',
+        voltage: '240V',
+        phaseConfig: 'Single-phase',
+        ctConfig: '2 × 200A',
+        ctRatio: '200:0.1',
+        networkType: 'cellular',
+        simInfo: 'SIM 8901-•••• (Verizon)',
+        programmingCompleted: true,
+        serverConnected: plan.connectivity === 'passed',
+        connectivityTest: {
+          status: plan.connectivity,
+          testedAt: iso(-1),
+          readings:
+            plan.connectivity === 'passed'
+              ? '12.4 kWh baseline, RSSI -71 dBm'
+              : 'No server handshake after 3 attempts',
+        },
+        followUpRequired: plan.connectivity === 'failed',
+        finalApproved: !!plan.complete,
+        createdAt: iso(-1),
+        updatedAt: iso(-1),
+      });
+    }
+
+    if (plan.withPhotos) {
+      const items = DEFAULT_POST_INSTALL_CHECKLIST.filter((c) => c.required);
+      const photoIds: string[] = [];
+      items.forEach((item) => {
+        const pid = `photo-${id}-${item.key}`;
+        photoIds.push(pid);
+        photos.push({
+          id: pid,
+          farmId: id,
+          glowFarmId,
+          phase: 'post_install',
+          checklistItemId: item.id,
+          checklistKey: item.key,
+          fileName: buildPhotoFileName({ glowFarmId, phase: 'post_install', checklistKey: item.key, index: 1, dateIso: now }),
+          localKey: `seed/${id}/${item.key}.jpg`,
+          source: 'camera',
+          syncState: 'uploaded',
+          attempts: 0,
+          reviewState: 'pending',
+          capturedAt: iso(-1),
+          capturedBy: 'u-sam',
+          location: farm.location,
+        });
+      });
+      submissions.push({
+        id: `sub-${id}`,
+        farmId: id,
+        glowFarmId,
+        phase: 'post_install',
+        submittedBy: 'u-sam',
+        submittedAt: iso(-1),
+        status: 'submitted',
+        photoIds,
+      });
+      notifications.push({
+        id: `ntf-sub-${id}`,
+        userId: 'u-jared',
+        type: 'photos_submitted',
+        title: 'Post-install photos submitted',
+        body: `${glowFarmId} · ${farm.name}`,
+        farmId: id,
+        glowFarmId,
+        read: false,
+        createdAt: iso(-1),
+      });
+    }
+
+    if (plan.installer && plan.box !== 'complete') {
+      notifications.push({
+        id: `ntf-inst-${id}`,
+        userId: 'u-sam',
+        type: 'new_assignment',
+        title: 'Box installation assigned',
+        body: `${glowFarmId} · ${farm.name}`,
+        farmId: id,
+        glowFarmId,
+        read: false,
+        createdAt: iso(-2),
+      });
+    }
+  });
+
   // A welcome assignment notification for Dan.
   notifications.push({
     id: 'ntf-assign-dan',
@@ -291,5 +458,5 @@ export function buildSeed(): SeedData {
     createdAt: iso(-2),
   });
 
-  return { users: SEED_USERS, farms, photos, submissions, problems, activity, notifications };
+  return { users: SEED_USERS, farms, photos, submissions, problems, activity, notifications, boxInstallations };
 }

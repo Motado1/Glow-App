@@ -1,15 +1,14 @@
 # Glow Field Operations
 
 The field-operations layer between the **Glow Hub** and the people doing pre-install
-photography, post-install photography, and monitoring-box installs. This first release
-implements the **pre-install photography workflow** end to end — assignment → routing →
-photo capture → review/approval — as one universal **Expo (React Native)** app that runs
-on **iOS, Android, and web**.
+photography, post-install photography, and monitoring-box installs. It runs the full field
+lifecycle — pre-install photos → PTO → box installation → post-install photos → review — as
+one universal **Expo (React Native)** app on **iOS, Android, and web**.
 
-> Scope of this build: the MVP from the requirements doc (§17), starting with pre-install
-> photography. Box installation, live Google Drive, DJI, push notifications, and two-way
-> Hub sync are deliberately deferred — but the data model and status system already
-> account for them so they slot in without rework.
+> Scope so far: the pre-install photography MVP (requirements §17) **plus** the monitoring-box
+> installation + post-install photography workflow (§4/§11). Live Google Drive, DJI, push
+> notifications, and two-way Hub sync remain deferred — the data model and status system
+> already account for them so they slot in without rework.
 
 ## Quick start
 
@@ -30,7 +29,7 @@ No accounts or API keys are required — the app ships with a **local demo backe
 | **Jared** | Administrator | Everything: dashboard, all farms, assignment, review, import |
 | **Dan Whitfield** | Field Photographer | Only farms assigned to him (Colorado) |
 | **Maria Ortiz** | Field Photographer | Only farms assigned to her (Kansas) |
-| **Sam Reeves** | Box Installer | Field surface (box-install flow lands in a later phase) |
+| **Sam Reeves** | Box Installer | Only farms assigned to him for box installation |
 | **Priya Nair** | Reviewer | Review queue + approvals |
 
 ## End-to-end demo (5 minutes)
@@ -51,6 +50,21 @@ No accounts or API keys are required — the app ships with a **local demo backe
    Dan gets an alert. Rejected items show up back on Dan's checklist as retakes.
 
 Use **More → Reset demo data** to start over.
+
+## Box-installation demo (the second half of the lifecycle)
+
+1. **As Jared**, open a farm whose pre-install photos are **Approved** and tap
+   **Mark PTO reached** — it moves into the box-installation queue. (Several farms are
+   pre-seeded past this point already.)
+2. **Assign → 🔧 Box install** → pick **Sam** and assign the ready farms.
+3. **Sign in as Sam** → **Today** shows his installation queue. Open a farm to record the
+   **box serial** (tap **Scan** to simulate), electrical + network details, run the
+   **connectivity test** (pass/fail), and shoot the **post-install checklist**, then **Submit**.
+4. **Back as Jared → Review** → the post-install set shows the monitoring-box summary;
+   **approve** to mark the farm **Field Operations Complete**, or request a correction.
+
+The dashboard's **Box installation** row tracks PTO reached, ready-for-install, in-progress,
+installed-but-not-connected, and field-ops-complete counts.
 
 ## Architecture
 
@@ -100,9 +114,9 @@ npx expo export --platform web   # proves the universal build (catches web-incom
 
 ## Deferred to later phases (already modelled)
 
-Live Google Drive upload · monitoring-box install flow + serial/QR scanning · connectivity
-tests · DJI integration · PTO-triggered assignments & two-way Hub sync · push notifications ·
-automated audit-package prep · real cloud auth/DB.
+Live Google Drive upload · real barcode/QR serial scanning (the **Scan** button is simulated
+today) · DJI integration · automatic PTO from the Hub & two-way Hub sync (PTO is a manual
+button today) · push notifications · automated audit-package prep · real cloud auth/DB.
 
 ## Open product decisions (requirements §20)
 

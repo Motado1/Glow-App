@@ -6,7 +6,7 @@ import { SyncChip } from '@/components/SyncChip';
 import { Button, Card, Divider, EmptyState, Row, Screen, Spacer, Stat, Txt } from '@/components/ui';
 import { repo } from '@/data';
 import { optimizeRoute } from '@/features/routing/optimizeRoute';
-import type { GeoPoint } from '@/domain/types';
+import type { Farm, GeoPoint } from '@/domain/types';
 import { formatDuration, formatMiles } from '@/lib/geo';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
@@ -30,6 +30,10 @@ export default function Today() {
   const route = useMemo(() => optimizeRoute(active, start), [active, start]);
   const recommended = route.stops.slice(0, 6);
   const firstFarm = recommended[0] ? mine.find((f) => f.id === recommended[0].farmId) : undefined;
+
+  if (user?.role === 'installer') {
+    return <InstallerToday name={user?.name} state={primaryState} farms={mine} />;
+  }
 
   return (
     <Screen scroll>
@@ -82,6 +86,44 @@ export default function Today() {
             const f = mine.find((x) => x.id === s.farmId);
             return f ? <FarmCard key={f.id} farm={f} onPress={() => router.push(`/(field)/farm/${f.id}` as never)} /> : null;
           })}
+        </>
+      )}
+    </Screen>
+  );
+}
+
+function InstallerToday({ name, state, farms }: { name?: string; state: string; farms: Farm[] }) {
+  const total = farms.length;
+  const complete = farms.filter((f) => f.boxInstallStatus === 'complete').length;
+  const remaining = total - complete;
+  const attention = farms.filter(
+    (f) => f.boxInstallStatus === 'connectivity_failed' || f.boxInstallStatus === 'correction_required',
+  ).length;
+  const todo = farms.filter((f) => f.boxInstallStatus !== 'complete');
+
+  return (
+    <Screen scroll>
+      <Header title={`${state} Installations`} subtitle={name} right={<SyncChip />} />
+      {total === 0 ? (
+        <EmptyState icon="🎉" title="No installations assigned" subtitle="You're all caught up — check back later." />
+      ) : (
+        <>
+          <Row wrap gap={spacing.sm}>
+            <Stat label="Assigned" value={total} />
+            <Stat label="Complete" value={complete} tone="success" />
+            <Stat label="Remaining" value={remaining} tone="progress" />
+            <Stat label="Needs attention" value={attention} tone={attention ? 'danger' : 'neutral'} />
+          </Row>
+          <Divider />
+          <Txt variant="heading">To install</Txt>
+          <Spacer size={spacing.sm} />
+          {todo.length === 0 ? (
+            <EmptyState icon="✅" title="All installed" subtitle="Every assigned box is complete." />
+          ) : (
+            todo.map((f) => (
+              <FarmCard key={f.id} farm={f} phase="box_install" onPress={() => router.push(`/(field)/install/${f.id}` as never)} />
+            ))
+          )}
         </>
       )}
     </Screen>

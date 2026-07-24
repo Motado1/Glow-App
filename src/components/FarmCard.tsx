@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { preInstallStatus } from '@/components/statusHelpers';
+import { boxInstallStatus, preInstallStatus } from '@/components/statusHelpers';
 import { Badge, Card, Row, StatusPill, Txt } from '@/components/ui';
 import type { Farm } from '@/domain/types';
 import { formatDate, isOverdue } from '@/lib/date';
@@ -10,15 +10,22 @@ export function FarmCard({
   onPress,
   assigneeName,
   rightBadge,
+  phase = 'pre_install',
 }: {
   farm: Farm;
   onPress?: () => void;
   assigneeName?: string;
   rightBadge?: { label: string; tone: 'neutral' | 'info' | 'progress' | 'warning' | 'danger' | 'success' };
+  phase?: 'pre_install' | 'box_install';
 }) {
-  const done = farm.preInstallStatus === 'approved' || farm.preInstallStatus === 'complete';
-  const overdue = isOverdue(farm.scheduledDate, done);
-  const st = preInstallStatus(farm.preInstallStatus);
+  const box = phase === 'box_install';
+  const done = box
+    ? farm.boxInstallStatus === 'complete'
+    : farm.preInstallStatus === 'approved' || farm.preInstallStatus === 'complete';
+  const overdue = box ? false : isOverdue(farm.scheduledDate, done);
+  const st = box
+    ? boxInstallStatus(farm.boxInstallStatus ?? 'ready_for_assignment')
+    : preInstallStatus(farm.preInstallStatus);
   return (
     <Card onPress={onPress} style={{ marginBottom: spacing.sm }}>
       <Row justify="space-between" align="flex-start" gap={spacing.sm}>

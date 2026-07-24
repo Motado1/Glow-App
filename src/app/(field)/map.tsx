@@ -15,7 +15,10 @@ export default function FieldMap() {
   const { data: farms } = useRepoQuery(() => (user ? repo.listFarms({ assignedTo: user.id }) : Promise.resolve([])), [user?.id], ['farms']);
   const [sel, setSel] = useState<string | undefined>();
 
-  const active = (farms ?? []).filter((f) => !DONE.includes(f.preInstallStatus) && f.location);
+  const isInstaller = user?.role === 'installer';
+  const active = (farms ?? []).filter(
+    (f) => f.location && (isInstaller ? f.boxInstallStatus !== 'complete' : !DONE.includes(f.preInstallStatus)),
+  );
   const markers = active.map((f) => ({ id: f.id, lat: f.location!.lat, lng: f.location!.lng, label: f.name }));
   const selFarm = active.find((f) => f.id === sel);
 
@@ -29,7 +32,7 @@ export default function FieldMap() {
           <Txt variant="subtitle">{selFarm.name}</Txt>
           <Txt variant="caption">{selFarm.address}</Txt>
           <Spacer size={spacing.sm} />
-          <Button title="Open farm" icon="📋" onPress={() => router.push(`/(field)/farm/${selFarm.id}` as never)} full />
+          <Button title="Open farm" icon="📋" onPress={() => router.push((isInstaller ? `/(field)/install/${selFarm.id}` : `/(field)/farm/${selFarm.id}`) as never)} full />
         </>
       ) : (
         <Txt variant="caption">Tap a pin to see the farm.</Txt>

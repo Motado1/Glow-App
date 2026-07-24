@@ -225,3 +225,72 @@ export function deriveOverallFromPreInstall(
       return 'pre_install_in_progress';
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Box-install tone, transitions, and overall derivation              */
+/* ------------------------------------------------------------------ */
+
+export const BOX_INSTALL_STATUS_TONE: Record<BoxInstallStatus, StatusTone> = {
+  waiting_for_pto: 'neutral',
+  pto_confirmed: 'info',
+  ready_for_assignment: 'info',
+  assigned: 'info',
+  installation_scheduled: 'info',
+  installer_en_route: 'progress',
+  installation_started: 'progress',
+  hardware_installed: 'progress',
+  programming_required: 'warning',
+  connectivity_test_pending: 'warning',
+  connectivity_failed: 'danger',
+  post_install_photos_submitted: 'progress',
+  under_review: 'warning',
+  correction_required: 'danger',
+  approved: 'success',
+  complete: 'success',
+};
+
+export const BOX_INSTALL_TRANSITIONS: Record<BoxInstallStatus, BoxInstallStatus[]> = {
+  waiting_for_pto: ['pto_confirmed'],
+  pto_confirmed: ['ready_for_assignment'],
+  ready_for_assignment: ['assigned'],
+  assigned: ['installation_scheduled', 'installer_en_route', 'installation_started'],
+  installation_scheduled: ['installer_en_route', 'installation_started'],
+  installer_en_route: ['installation_started'],
+  installation_started: ['hardware_installed'],
+  hardware_installed: ['programming_required', 'connectivity_test_pending'],
+  programming_required: ['connectivity_test_pending'],
+  connectivity_test_pending: ['connectivity_failed', 'post_install_photos_submitted'],
+  connectivity_failed: ['connectivity_test_pending', 'post_install_photos_submitted'],
+  post_install_photos_submitted: ['under_review'],
+  under_review: ['approved', 'correction_required'],
+  correction_required: ['installation_started', 'post_install_photos_submitted'],
+  approved: ['complete'],
+  complete: [],
+};
+
+export function canTransitionBoxInstall(from: BoxInstallStatus, to: BoxInstallStatus): boolean {
+  if (from === to) return true;
+  return BOX_INSTALL_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+/** Map a box-install status onto the headline overall farm status. */
+export function deriveOverallFromBoxInstall(
+  box: BoxInstallStatus,
+  _current: OverallStatus,
+): OverallStatus {
+  switch (box) {
+    case 'waiting_for_pto':
+      return 'waiting_for_pto';
+    case 'pto_confirmed':
+    case 'ready_for_assignment':
+      return 'box_install_ready';
+    case 'connectivity_failed':
+    case 'correction_required':
+      return 'field_correction_required';
+    case 'approved':
+    case 'complete':
+      return 'field_ops_complete';
+    default:
+      return 'box_install_in_progress';
+  }
+}

@@ -12,6 +12,8 @@ import type {
   ActivityEvent,
   ActivityFilter,
   AppNotification,
+  BoxInstallation,
+  BoxInstallationInput,
   EntityKind,
   Farm,
   FarmFilter,
@@ -75,6 +77,12 @@ export interface DataRepository {
   pushNotification(input: NewNotification): Promise<AppNotification>;
   markNotificationRead(id: string): Promise<void>;
   markAllNotificationsRead(userId: string): Promise<void>;
+
+  // ---- Box installation (post-install phase) ----
+  markPtoReached(farmId: string, byUserId: string): Promise<Farm>;
+  getBoxInstallation(farmId: string): Promise<BoxInstallation | null>;
+  listBoxInstallations(): Promise<BoxInstallation[]>;
+  saveBoxInstallation(input: BoxInstallationInput, byUserId: string): Promise<BoxInstallation>;
 
   // ---- Users ----
   listUsers(): Promise<User[]>;

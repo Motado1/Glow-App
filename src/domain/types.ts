@@ -377,4 +377,54 @@ export type EntityKind =
   | 'submissions'
   | 'problems'
   | 'activity'
-  | 'notifications';
+  | 'notifications'
+  | 'box_installations';
+
+/* --------------------------- Box installation ---------------------------- */
+
+export type ConnectivityStatus = 'pending' | 'passed' | 'failed';
+export type NetworkType = 'cellular' | 'ethernet' | 'wifi' | '';
+
+export interface ConnectivityTest {
+  status: ConnectivityStatus;
+  testedAt?: string;
+  readings?: string;
+  note?: string;
+}
+
+/**
+ * Monitoring-box installation record (requirements §11). One per farm. Box
+ * serial + a connectivity result are the only required fields this pass; the
+ * rest are optional detail (data-driven, so it can be tightened later).
+ */
+export interface BoxInstallation {
+  id: string;
+  farmId: string;
+  glowFarmId: string;
+  boxSerial: string;
+  installerId: string;
+  installedAt?: string;
+  location?: GeoPoint;
+  boxVersion?: string;
+  powerSupply?: string;
+  electricalSystemType?: string;
+  voltage?: string;
+  phaseConfig?: string;
+  ctConfig?: string;
+  ctRatio?: string;
+  networkType?: NetworkType;
+  simInfo?: string;
+  ethernetInfo?: string;
+  programmingCompleted: boolean;
+  serverConnected: boolean;
+  connectivityTest: ConnectivityTest;
+  testReadings?: string;
+  problems?: string;
+  followUpRequired: boolean;
+  finalApproved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Input to saveBoxInstallation — id/timestamps are assigned by the repository. */
+export type BoxInstallationInput = Omit<BoxInstallation, 'id' | 'createdAt' | 'updatedAt'>;

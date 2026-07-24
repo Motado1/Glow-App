@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { Header } from '@/components/Header';
 import { PhotoThumb } from '@/components/PhotoThumb';
-import { overallStatus, preInstallStatus } from '@/components/statusHelpers';
+import { boxInstallStatus, overallStatus, preInstallStatus } from '@/components/statusHelpers';
 import { Button, Card, Divider, Row, Screen, SegmentedControl, Spacer, StatusPill, Txt } from '@/components/ui';
 import { repo } from '@/data';
-import type { ActivityEvent, Photo, Submission } from '@/domain/types';
+import type { ActivityEvent, BoxInstallation, Photo, Submission } from '@/domain/types';
 import { formatDate, relativeTime } from '@/lib/date';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
@@ -31,7 +31,9 @@ export default function AdminFarmDetail() {
   const { data: photos } = useRepoQuery(() => (farm ? repo.listPhotos(farm.id) : Promise.resolve([] as Photo[])), [farm?.id], ['photos']);
   const { data: activity } = useRepoQuery(() => (farm ? repo.listActivity({ farmId: farm.id }) : Promise.resolve([] as ActivityEvent[])), [farm?.id], ['activity']);
   const { data: subs } = useRepoQuery(() => (farm ? repo.listSubmissions({ farmId: farm.id }) : Promise.resolve([] as Submission[])), [farm?.id], ['submissions']);
+  const { data: boxInstall } = useRepoQuery(() => (farm ? repo.getBoxInstallation(farm.id) : Promise.resolve(null as BoxInstallation | null)), [farm?.id], ['box_installations']);
   const [assigning, setAssigning] = useState(false);
+  const [ptoBusy, setPtoBusy] = useState(false);
 
   if (!farm) {
     return (
@@ -44,13 +46,23 @@ export default function AdminFarmDetail() {
 
   const photographers = (users ?? []).filter((u) => u.role === 'photographer');
   const assignee = (users ?? []).find((u) => u.id === farm.assignedPhotographerId);
+  const installer = (users ?? []).find((u) => u.id === farm.assignedInstallerId);
   const pre = preInstallStatus(farm.preInstallStatus);
   const ov = overallStatus(farm.overallStatus);
+  const boxSt = farm.boxInstallStatus ? boxInstallStatus(farm.boxInstallStatus) : null;
   const pendingSub = (subs ?? []).find((s) => s.status === 'submitted' || s.status === 'under_review');
+  const canMarkPto = farm.ptoStatus === 'not_reached' && (farm.preInstallStatus === 'approved' || farm.preInstallStatus === 'complete');
 
   async function assignTo(uid: string) {
     await repo.assignFarms([farm!.id], uid, 'photographer', admin?.id ?? 'system');
     setAssigning(false);
+    refresh();
+  }
+
+  async function markPto() {
+    setPtoBusy(true);
+    await repo.markPtoReached(farm!.id, admin?.id ?? 'system');
+    setPtoBusy(false);
     refresh();
   }
 
@@ -60,8 +72,15 @@ export default function AdminFarmDetail() {
       <Row gap={spacing.sm} wrap>
         <StatusPill label={ov.label} tone={ov.tone} />
         <StatusPill label={pre.label} tone={pre.tone} />
+        {boxSt ? <StatusPill label={boxSt.label} tone={boxSt.tone} /> : null}
       </Row>
       <Spacer />
+      {canMarkPto ? (
+        <>
+          <Button title="Mark PTO reached (→ box install)" icon="⚡" onPress={markPto} loading={ptoBusy} full />
+          <Spacer />
+        </>
+      ) : null}
       {pendingSub ? (
         <>
           <Button title="Open in review" icon="✅" onPress={() => router.push(`/(admin)/submission/${pendingSub.id}` as never)} full />
@@ -79,11 +98,43 @@ export default function AdminFarmDetail() {
         <Info label="Scheduled" value={formatDate(farm.scheduledDate)} />
         <Info label="Completed" value={formatDate(farm.completionDate)} />
         <Info label="Photographer" value={assignee?.name} />
+        <Info label="Installer" value={installer?.name} />
+        <Info label="Box serial" value={farm.boxSerial} />
         <Info label="Access" value={farm.accessInstructions} />
         <Info label="Contact" value={farm.contact ? `${farm.contact.name ?? ''} ${farm.contact.phone ?? ''}`.trim() : undefined} />
         <Info label="Notes" value={farm.notes} />
         <Info label="Drive folder" value={farm.driveFolderUrl ?? 'Created on approval (later phase)'} />
       </Card>
+
+      {boxInstall ? (
+        <>
+          <Spacer />
+          <Txt variant="heading">Monitoring box installation</Txt>
+          <Spacer size={spacing.sm} />
+          <Card>
+            <Info label="Box serial" value={boxInstall.boxSerial} />
+            <Info label="Installer" value={installer?.name} />
+            <Info label="Installed" value={formatDate(boxInstall.installedAt)} />
+            <Info label="Network" value={boxInstall.networkType || undefined} />
+            <Info label="Voltage / phase" value={[boxInstall.voltage, boxInstall.phaseConfig].filter(Boolean).join(' · ') || undefined} />
+            <Info label="CT config / ratio" value={[boxInstall.ctConfig, boxInstall.ctRatio].filter(Boolean).join(' · ') || undefined} />
+            <Info label="Programming" value={boxInstall.programmingCompleted ? 'Completed' : 'Pending'} />
+            <Info
+              label="Connectivity"
+              value={
+                boxInstall.connectivityTest.status === 'passed'
+                  ? 'Passed ✓'
+                  : boxInstall.connectivityTest.status === 'failed'
+                    ? 'Failed ✗'
+                    : 'Not tested'
+              }
+            />
+            <Info label="Readings" value={boxInstall.connectivityTest.readings} />
+            <Info label="Deficiencies" value={boxInstall.problems} />
+            <Info label="Follow-up" value={boxInstall.followUpRequired ? 'Required' : 'None'} />
+          </Card>
+        </>
+      ) : null}
 
       <Spacer />
       <Button

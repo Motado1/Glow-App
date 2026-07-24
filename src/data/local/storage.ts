@@ -31,7 +31,8 @@ export const KEYS = {
   activity: 'activity',
   notifications: 'notifications',
   users: 'users',
+  boxInstallations: 'box_installations',
   outbox: 'outbox',
   session: 'session',
-  seeded: 'seeded_v1',
+  seeded: 'seeded_v2',
 } as const;

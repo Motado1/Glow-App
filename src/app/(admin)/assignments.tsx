@@ -3,42 +3,58 @@ import { Pressable, View } from 'react-native';
 import { Header } from '@/components/Header';
 import { Button, Card, Divider, EmptyState, Row, Screen, SegmentedControl, Spacer, Txt } from '@/components/ui';
 import { repo } from '@/data';
+import type { WorkRole } from '@/domain/types';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
-import { colors, radius, spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
 
-const READY = ['ready_for_assignment', 'not_ready'];
-const DONE = ['approved', 'complete'];
+const PRE_READY = ['ready_for_assignment', 'not_ready'];
+const PRE_DONE = ['approved', 'complete'];
 
 export default function Assignments() {
   const admin = useCurrentUser();
   const { data: farms, refresh } = useRepoQuery(() => repo.listFarms(), [], ['farms']);
   const { data: users } = useRepoQuery(() => repo.listUsers(), []);
-  const photographers = (users ?? []).filter((u) => u.role === 'photographer' && u.active);
 
+  const [mode, setMode] = useState<WorkRole>('photographer');
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [photographerId, setPhotographerId] = useState('');
+  const [workerId, setWorkerId] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const isInstaller = mode === 'installer';
+  const workers = (users ?? []).filter((u) => u.role === mode && u.active);
+  const activeWorker = workerId && workers.some((w) => w.id === workerId) ? workerId : workers[0]?.id || '';
+
   const unassigned = useMemo(
-    () => (farms ?? []).filter((f) => !f.assignedPhotographerId && READY.includes(f.preInstallStatus)),
-    [farms],
+    () =>
+      (farms ?? []).filter((f) =>
+        isInstaller
+          ? !f.assignedInstallerId && f.boxInstallStatus === 'ready_for_assignment'
+          : !f.assignedPhotographerId && PRE_READY.includes(f.preInstallStatus),
+      ),
+    [farms, isInstaller],
   );
   const states = useMemo(() => [...new Set(unassigned.map((f) => f.state))], [unassigned]);
-  const activePhotographer = photographerId || photographers[0]?.id || '';
 
   const summaries = useMemo(() => {
     const map = new Map<string, { count: number; done: number }>();
     for (const f of farms ?? []) {
-      if (!f.assignedPhotographerId) continue;
-      const e = map.get(f.assignedPhotographerId) ?? { count: 0, done: 0 };
+      const uid = isInstaller ? f.assignedInstallerId : f.assignedPhotographerId;
+      if (!uid) continue;
+      const e = map.get(uid) ?? { count: 0, done: 0 };
       e.count++;
-      if (DONE.includes(f.preInstallStatus)) e.done++;
-      map.set(f.assignedPhotographerId, e);
+      const done = isInstaller ? f.boxInstallStatus === 'complete' : PRE_DONE.includes(f.preInstallStatus);
+      if (done) e.done++;
+      map.set(uid, e);
     }
     return [...map.entries()];
-  }, [farms]);
+  }, [farms, isInstaller]);
 
+  function switchMode(m: WorkRole) {
+    setMode(m);
+    setSelected(new Set());
+    setWorkerId('');
+  }
   function toggle(id: string) {
     setSelected((prev) => {
       const n = new Set(prev);
@@ -47,34 +63,38 @@ export default function Assignments() {
       return n;
     });
   }
-
   function selectState(state: string) {
     setSelected(new Set(unassigned.filter((f) => f.state === state).map((f) => f.id)));
   }
-
   async function assign() {
-    if (!activePhotographer || selected.size === 0) return;
+    if (!activeWorker || selected.size === 0) return;
     setBusy(true);
-    await repo.assignFarms([...selected], activePhotographer, 'photographer', admin?.id ?? 'system');
+    await repo.assignFarms([...selected], activeWorker, mode, admin?.id ?? 'system');
     setSelected(new Set());
     setBusy(false);
     refresh();
   }
-
   const nameOf = (id: string) => (users ?? []).find((u) => u.id === id)?.name ?? 'Unknown';
 
   return (
     <Screen scroll>
-      <Header title="Assign work" subtitle={`${unassigned.length} unassigned pre-install`} />
+      <Header title="Assign work" subtitle={`${unassigned.length} ${isInstaller ? 'ready for install' : 'unassigned pre-install'}`} />
 
-      {photographers.length > 0 ? (
+      <SegmentedControl
+        options={[{ value: 'photographer', label: '📷 Photography' }, { value: 'installer', label: '🔧 Box install' }]}
+        value={mode}
+        onChange={switchMode}
+      />
+      <Spacer size={spacing.sm} />
+
+      {workers.length > 0 ? (
         <>
           <Txt variant="label">Assign to</Txt>
           <Spacer size={spacing.xs} />
           <SegmentedControl
-            options={photographers.map((p) => ({ value: p.id, label: p.name.split(' ')[0] }))}
-            value={activePhotographer}
-            onChange={setPhotographerId}
+            options={workers.map((p) => ({ value: p.id, label: p.name.split(' ')[0] }))}
+            value={activeWorker}
+            onChange={setWorkerId}
           />
           <Spacer size={spacing.sm} />
           {states.length > 0 ? (
@@ -91,7 +111,7 @@ export default function Assignments() {
           ) : null}
           <Spacer size={spacing.sm} />
           <Button
-            title={selected.size ? `Assign ${selected.size} to ${nameOf(activePhotographer).split(' ')[0]}` : 'Select farms to assign'}
+            title={selected.size ? `Assign ${selected.size} to ${nameOf(activeWorker).split(' ')[0]}` : 'Select farms to assign'}
             onPress={assign}
             loading={busy}
             disabled={selected.size === 0}
@@ -99,12 +119,18 @@ export default function Assignments() {
             icon="🧭"
           />
         </>
-      ) : null}
+      ) : (
+        <Txt variant="caption">No active {mode}s.</Txt>
+      )}
 
       <Divider />
 
       {unassigned.length === 0 ? (
-        <EmptyState icon="✅" title="Nothing unassigned" subtitle="Every ready farm has a photographer." />
+        <EmptyState
+          icon="✅"
+          title="Nothing to assign"
+          subtitle={isInstaller ? 'No farms are waiting for a box install.' : 'Every ready farm has a photographer.'}
+        />
       ) : (
         unassigned.map((f) => {
           const on = selected.has(f.id);
@@ -129,7 +155,7 @@ export default function Assignments() {
       {summaries.length > 0 ? (
         <>
           <Divider />
-          <Txt variant="heading">Current assignments</Txt>
+          <Txt variant="heading">Current {isInstaller ? 'installers' : 'photographers'}</Txt>
           <Spacer size={spacing.sm} />
           {summaries.map(([uid, e]) => (
             <Card key={uid} style={{ marginBottom: spacing.sm }}>
