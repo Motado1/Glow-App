@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { FarmMap } from '@/components/map/FarmMap';
 import { Header } from '@/components/Header';
+import { SignOutButton } from '@/components/SignOutButton';
 import { Button, Screen, Spacer, Txt } from '@/components/ui';
 import { repo } from '@/data';
 import { useCurrentUser } from '@/stores/authStore';
@@ -24,7 +25,7 @@ export default function FieldMap() {
 
   return (
     <Screen>
-      <Header title="Map" subtitle={`${markers.length} stops plotted`} />
+      <Header title="Map" subtitle={`${markers.length} stops plotted`} right={<SignOutButton />} />
       <FarmMap markers={markers} selectedId={sel} onSelect={setSel} />
       <Spacer />
       {selFarm ? (

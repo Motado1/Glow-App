@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { FlatList } from 'react-native';
 import { Header } from '@/components/Header';
+import { SignOutButton } from '@/components/SignOutButton';
 import { Badge, Button, Card, EmptyState, Row, Screen, Txt } from '@/components/ui';
 import { repo } from '@/data';
 import { relativeTime } from '@/lib/date';
@@ -29,7 +30,12 @@ export default function Alerts() {
       <Header
         title="Alerts"
         subtitle={`${items.filter((n) => !n.read).length} unread`}
-        right={<Button small variant="ghost" title="Mark all read" onPress={markAll} />}
+        right={
+          <Row gap={spacing.sm}>
+            <Button small variant="ghost" title="Mark all read" onPress={markAll} />
+            <SignOutButton />
+          </Row>
+        }
       />
       <FlatList
         style={{ flex: 1 }}
