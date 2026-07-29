@@ -33,3 +33,23 @@ export function formatDuration(minutes: number): string {
   const m = Math.round(minutes % 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
+
+export function isValidLatLng(lat: number, lng: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
+/** Parse "39.74, -104.99" (comma, semicolon or space separated) into a point. */
+export function parseCoordinates(text: string): GeoPoint | null {
+  const m = text.trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+  if (!m) return null;
+  const lat = Number(m[1]);
+  const lng = Number(m[2]);
+  return isValidLatLng(lat, lng) ? { lat, lng } : null;
+}

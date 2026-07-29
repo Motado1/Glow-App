@@ -3,13 +3,13 @@ import { Pressable, View } from 'react-native';
 import { Header } from '@/components/Header';
 import { Button, Card, Divider, EmptyState, Row, Screen, SegmentedControl, Spacer, Txt } from '@/components/ui';
 import { repo } from '@/data';
+import { isBoxInstallDone, isPreInstallDone } from '@/domain/status';
 import type { WorkRole } from '@/domain/types';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
 import { colors, spacing } from '@/theme';
 
 const PRE_READY = ['ready_for_assignment', 'not_ready'];
-const PRE_DONE = ['approved', 'complete'];
 
 export default function Assignments() {
   const admin = useCurrentUser();
@@ -43,7 +43,7 @@ export default function Assignments() {
       if (!uid) continue;
       const e = map.get(uid) ?? { count: 0, done: 0 };
       e.count++;
-      const done = isInstaller ? f.boxInstallStatus === 'complete' : PRE_DONE.includes(f.preInstallStatus);
+      const done = isInstaller ? isBoxInstallDone(f.boxInstallStatus) : isPreInstallDone(f.preInstallStatus);
       if (done) e.done++;
       map.set(uid, e);
     }

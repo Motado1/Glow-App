@@ -6,16 +6,19 @@
  */
 import type { ChecklistItem, Photo, PhotoPhase } from '@/domain/types';
 
+/**
+ * Pre-install photo checklist.
+ *
+ * Meter, main electrical panel, utility equipment and drone overview were
+ * removed after field testing — they aren't needed before installation.
+ * Access limitations / obstructions became a text note on the farm record
+ * (`Farm.obstructionNotes`) rather than a photo.
+ */
 export const DEFAULT_PRE_INSTALL_CHECKLIST: ChecklistItem[] = [
   { id: 'pi_front', phase: 'pre_install', key: 'FrontOfProperty', label: 'Front of property', required: true },
   { id: 'pi_address', phase: 'pre_install', key: 'AddressVerification', label: 'Address verification', required: true, description: 'House number / mailbox clearly visible' },
-  { id: 'pi_meter', phase: 'pre_install', key: 'Meter', label: 'Meter', required: true },
-  { id: 'pi_panel', phase: 'pre_install', key: 'MainPanel', label: 'Main electrical panel', required: true, description: 'Panel with cover, and open showing breakers' },
-  { id: 'pi_utility', phase: 'pre_install', key: 'UtilityEquipment', label: 'Utility equipment', required: false },
   { id: 'pi_roof', phase: 'pre_install', key: 'RoofOrPanelLocation', label: 'Roof / proposed panel location', required: true },
   { id: 'pi_overview', phase: 'pre_install', key: 'PropertyOverview', label: 'Property overview', required: true },
-  { id: 'pi_drone', phase: 'pre_install', key: 'DroneOverview', label: 'Drone overview', required: false, allowDrone: true, description: 'Aerial of the property' },
-  { id: 'pi_access', phase: 'pre_install', key: 'AccessLimitations', label: 'Access limitations / obstructions', required: false },
 ];
 
 export const DEFAULT_POST_INSTALL_CHECKLIST: ChecklistItem[] = [

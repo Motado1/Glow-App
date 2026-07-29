@@ -31,7 +31,7 @@ import type {
   User,
   WorkRole,
 } from '@/domain/types';
-import type { FarmImportRow } from '@/features/import/parseCsv';
+import type { FarmImportRow } from '@/features/import/rows';
 
 export interface DataRepository {
   // ---- Farms ----

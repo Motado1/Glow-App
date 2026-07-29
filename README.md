@@ -41,9 +41,10 @@ No accounts or API keys are required — the app ships with a **local demo backe
 3. **Sign out, sign in as Dan** → **Today** shows his Colorado assignment: totals,
    recommended stops, first stop + estimated drive time, and an optimized **Route** that
    hands off to Apple/Google Maps.
-4. **Open a farm → Pre-install checklist** → add photos with **Camera** or **Import**
-   (drone/gallery). Tap the **sync chip** to go **Offline** first: photos queue locally and
-   upload when you flip back online. Required-photo gaps block submit.
+4. **Open a farm → Pre-install checklist** → four required shots (front of property, address
+   verification, roof/panel location, property overview) via **Camera** or **Import**, plus a
+   free-text **obstructions note**. Tap the **sync chip** to go **Offline** first: photos queue
+   locally and upload when you flip back online. Required-photo gaps block submit.
 5. **Submit for review** → the app auto-advances to the next farm.
 6. **Sign back in as Jared → Review** → open the submission, **approve** or tap photos to
    **request retakes** with a reason. The farm status + activity history update live, and
@@ -85,8 +86,13 @@ Other load-bearing pieces:
 - **Offline outbox** (`src/features/sync/` + `src/stores/syncStore.ts`) — writes are
   optimistic; each queues an idempotent task drained when online. The simulated uploader is
   the single point a real one replaces. Connectivity = NetInfo + a dev override toggle.
-- **Routing** (`src/features/routing/`) — nearest-neighbour sequencing from a start point
-  (skips farms missing coordinates) + Apple/Google Maps deep links.
+- **Routing** (`src/features/routing/`) — nearest-neighbour seed, then 2-opt (removes
+  crossings) and Or-opt (relocates a stranded stop) improvement, then leg rebuild. The start
+  point is chooseable: device GPS, one of your farms, or a typed address/coordinates.
+  Skips farms missing coordinates + Apple/Google Maps deep links.
+- **Import** (`src/features/import/`) — CSV and (on desktop) table PDFs normalise to one
+  shared validator. Requires Farm ID + Name + address **or** coordinates. Address-only rows
+  can be geocoded to map pins via free OpenStreetMap lookup (`src/features/geo/geocode.ts`).
 - **Photos** (`src/features/photos/`) — configurable checklist, required-photo validation,
   and consistent file naming (`GlowFarmID_PreInstall_Meter_01_2026-07-23.jpg`).
 

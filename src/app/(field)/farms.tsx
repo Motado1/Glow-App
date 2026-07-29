@@ -7,16 +7,18 @@ import { SignOutButton } from '@/components/SignOutButton';
 import { SyncChip } from '@/components/SyncChip';
 import { EmptyState, Row, Screen, SegmentedControl, Spacer } from '@/components/ui';
 import { repo } from '@/data';
+import { isBoxInstallDone, isPreInstallDone } from '@/domain/status';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
 import { spacing } from '@/theme';
 
-type Filter = 'all' | 'incomplete' | 'completed' | 'problem' | 'retake';
+// No "Problems" filter: problem flags are an office concern (retakes are not —
+// those are work instructions and stay).
+type Filter = 'all' | 'incomplete' | 'completed' | 'retake';
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'incomplete', label: 'Incomplete' },
   { value: 'completed', label: 'Completed' },
-  { value: 'problem', label: 'Problems' },
   { value: 'retake', label: 'Retakes' },
 ];
 const INSTALLER_FILTERS: { value: Filter; label: string }[] = [
@@ -24,8 +26,6 @@ const INSTALLER_FILTERS: { value: Filter; label: string }[] = [
   { value: 'incomplete', label: 'To install' },
   { value: 'completed', label: 'Complete' },
 ];
-const DONE = ['approved', 'complete'];
-const PROBLEMS = ['unable_to_access', 'address_problem', 'customer_contact_required'];
 
 export default function FieldFarms() {
   const user = useCurrentUser();
@@ -36,13 +36,12 @@ export default function FieldFarms() {
   const list = useMemo(() => {
     let a = farms ?? [];
     if (isInstaller) {
-      if (f === 'completed') a = a.filter((x) => x.boxInstallStatus === 'complete');
-      else if (f === 'incomplete') a = a.filter((x) => x.boxInstallStatus !== 'complete');
+      if (f === 'completed') a = a.filter((x) => isBoxInstallDone(x.boxInstallStatus));
+      else if (f === 'incomplete') a = a.filter((x) => !isBoxInstallDone(x.boxInstallStatus));
       return a;
     }
-    if (f === 'completed') a = a.filter((x) => DONE.includes(x.preInstallStatus));
-    else if (f === 'incomplete') a = a.filter((x) => !DONE.includes(x.preInstallStatus));
-    else if (f === 'problem') a = a.filter((x) => PROBLEMS.includes(x.preInstallStatus));
+    if (f === 'completed') a = a.filter((x) => isPreInstallDone(x.preInstallStatus));
+    else if (f === 'incomplete') a = a.filter((x) => !isPreInstallDone(x.preInstallStatus));
     else if (f === 'retake') a = a.filter((x) => x.preInstallStatus === 'retake_required');
     return a;
   }, [farms, f, isInstaller]);
@@ -63,6 +62,7 @@ export default function FieldFarms() {
         renderItem={({ item }) => (
           <FarmCard
             farm={item}
+            audience="field"
             phase={isInstaller ? 'box_install' : 'pre_install'}
             onPress={() => router.push((isInstaller ? `/(field)/install/${item.id}` : `/(field)/farm/${item.id}`) as never)}
           />

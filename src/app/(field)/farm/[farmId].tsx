@@ -3,11 +3,12 @@ import { useMemo, useState } from 'react';
 import { Linking, Platform, View } from 'react-native';
 import { Header } from '@/components/Header';
 import { PhotoThumb } from '@/components/PhotoThumb';
-import { preInstallStatus, SYNC_LABEL, syncTone } from '@/components/statusHelpers';
-import { Badge, Button, Card, Divider, Row, Screen, Spacer, StatusPill, Txt } from '@/components/ui';
+import { fieldPreInstallStatus, SYNC_LABEL, syncTone } from '@/components/statusHelpers';
+import { Badge, Button, Card, Divider, Field, Row, Screen, Spacer, StatusPill, Txt } from '@/components/ui';
 import { files, repo } from '@/data';
 import { REJECT_REASON_LABEL, type ChecklistItem, type Photo } from '@/domain/types';
 import { canContactFarm } from '@/domain/permissions';
+import { isFieldBlocked } from '@/domain/status';
 import { captureFromCamera, pickFromLibrary, type Picked } from '@/features/photos/capture';
 import { canSubmit, checklistFor, computeChecklistProgress, missingRequired } from '@/features/photos/checklist';
 import { buildPhotoFileName } from '@/features/photos/fileName';
@@ -36,6 +37,8 @@ export default function FieldFarmDetail() {
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [obstructions, setObstructions] = useState<string | null>(null);
+  const [savingNote, setSavingNote] = useState(false);
 
   const list = photos ?? [];
   const progress = useMemo(() => computeChecklistProgress(CHECKLIST, list), [list]);
@@ -51,8 +54,16 @@ export default function FieldFarmDetail() {
     );
   }
 
-  const st = preInstallStatus(farm.preInstallStatus);
+  const st = fieldPreInstallStatus(farm.preInstallStatus);
   const canContact = user ? canContactFarm(user, farm) : false;
+  const onHold = isFieldBlocked(farm.preInstallStatus);
+  const noteValue = obstructions ?? farm.obstructionNotes ?? '';
+
+  async function saveObstructions() {
+    setSavingNote(true);
+    await repo.updateFarm(farm!.id, { obstructionNotes: noteValue.trim() || undefined }, user?.id);
+    setSavingNote(false);
+  }
 
   async function addOne(item: ChecklistItem, picked: Picked, source: 'camera' | 'import') {
     const now = nowIso();
@@ -150,6 +161,18 @@ export default function FieldFarmDetail() {
         </Row>
       </Card>
 
+      {onHold ? (
+        <>
+          <Spacer size={spacing.sm} />
+          <Card>
+            <Txt variant="subtitle">⏸ Reported to the office</Txt>
+            <Txt variant="caption">
+              We've passed this on. You'll be notified if anything changes — no need to report it again.
+            </Txt>
+          </Card>
+        </>
+      ) : null}
+
       {farm.preInstallStatus === 'retake_required' ? (
         <>
           <Spacer size={spacing.sm} />
@@ -216,6 +239,21 @@ export default function FieldFarmDetail() {
           </Row>
         </Card>
       ))}
+
+      <Divider />
+      <Txt variant="heading">Access limitations / obstructions</Txt>
+      <Spacer size={spacing.sm} />
+      <Card>
+        <Field
+          value={noteValue}
+          onChangeText={setObstructions}
+          placeholder="Locked gate, steep driveway, dogs, overgrown access…"
+          autoCapitalize="sentences"
+          multiline
+        />
+        <Spacer size={spacing.sm} />
+        <Button small variant="secondary" title="Save note" icon="💾" loading={savingNote} onPress={saveObstructions} />
+      </Card>
 
       <Spacer />
       {!ready ? (

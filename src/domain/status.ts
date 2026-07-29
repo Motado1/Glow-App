@@ -75,6 +75,33 @@ export function isPreInstallProblem(s: PreInstallStatus): boolean {
 }
 
 /**
+ * Field-reported blockers — the farm can't be worked right now.
+ *
+ * Deliberately EXCLUDES `retake_required`: a retake is a work instruction from
+ * the office, not a problem, and must stay visible to the photographer.
+ */
+export const BLOCKED_PRE_INSTALL_STATUSES: PreInstallStatus[] = [
+  'unable_to_access',
+  'address_problem',
+  'customer_contact_required',
+];
+
+export function isFieldBlocked(s: PreInstallStatus): boolean {
+  return BLOCKED_PRE_INSTALL_STATUSES.includes(s);
+}
+
+/** Pre-install work that is finished. Single source of truth. */
+export const PRE_INSTALL_DONE_STATUSES: PreInstallStatus[] = ['approved', 'complete'];
+
+export function isPreInstallDone(s: PreInstallStatus): boolean {
+  return PRE_INSTALL_DONE_STATUSES.includes(s);
+}
+
+export function isBoxInstallDone(s?: BoxInstallStatus): boolean {
+  return s === 'complete';
+}
+
+/**
  * Allowed pre-install transitions. Used to guard status changes so the UI can
  * only move a farm somewhere sensible. Problem states can be reached from most
  * active states and can recover back to the active flow.

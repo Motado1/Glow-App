@@ -3,7 +3,7 @@
  * icon library (emoji + simple shapes) so it renders identically on iOS,
  * Android, and web with zero config risk.
  */
-import type { ReactNode } from 'react';
+import { Children, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +13,7 @@ import {
   Text,
   TextInput,
   type TextStyle,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from 'react-native';
@@ -72,6 +73,7 @@ export function Txt({
   weight,
   align,
   numberOfLines,
+  onPress,
   style,
 }: {
   children: ReactNode;
@@ -80,11 +82,13 @@ export function Txt({
   weight?: TextStyle['fontWeight'];
   align?: TextStyle['textAlign'];
   numberOfLines?: number;
+  onPress?: () => void;
   style?: StyleProp<TextStyle>;
 }) {
   return (
     <Text
       numberOfLines={numberOfLines}
+      onPress={onPress}
       style={[TXT[variant], color ? { color } : null, weight ? { fontWeight: weight } : null, align ? { textAlign: align } : null, style]}
     >
       {children}
@@ -142,15 +146,23 @@ export function Card({
   style?: StyleProp<ViewStyle>;
   padded?: boolean;
 }) {
-  const content = <View style={[styles.card, padded && { padding: spacing.lg }, style]}>{children}</View>;
+  // NOTE: the styled node must be the OUTERMOST element in both branches. When
+  // `style` was applied to an inner View, a pressable Card became a layout-less
+  // flex child — which is why clickable stat tiles never matched the width of
+  // non-clickable ones.
+  const base: StyleProp<ViewStyle> = [styles.card, padded && { padding: spacing.lg }, style];
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}>
-        {content}
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        style={({ pressed }) => [base, pressed ? { opacity: 0.85 } : null]}
+      >
+        {children}
       </Pressable>
     );
   }
-  return content;
+  return <View style={base}>{children}</View>;
 }
 
 /* -------------------------------- Button -------------------------------- */
@@ -332,6 +344,29 @@ export function EmptyState({ icon = '📭', title, subtitle }: { icon?: string; 
   );
 }
 
+/* -------------------------------- StatGrid ------------------------------- */
+
+/**
+ * Equal-width tile grid. Each cell gets a percentage `flexBasis` AND a matching
+ * `maxWidth` — the maxWidth is what stops a lone tile on the last line from
+ * stretching to full width (a plain `flex:1` wrapping row does exactly that).
+ * `alignItems: 'stretch'` makes tiles on the same line share a height.
+ */
+export function StatGrid({ children, gap = spacing.sm }: { children: ReactNode; gap?: number }) {
+  const { width } = useWindowDimensions();
+  const cols = width >= 1000 ? 4 : width >= 700 ? 3 : 2;
+  const basis = cols === 4 ? '23.5%' : cols === 3 ? '32%' : '48.5%';
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap, alignItems: 'stretch' }}>
+      {Children.toArray(children).map((child, i) => (
+        <View key={i} style={{ flexGrow: 1, flexBasis: basis, maxWidth: basis, minWidth: 0 }}>
+          {child}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /* --------------------------------- Stat --------------------------------- */
 
 export function Stat({ label, value, tone, onPress }: { label: string; value: string | number; tone?: StatusTone; onPress?: () => void }) {
@@ -391,6 +426,8 @@ const styles = StyleSheet.create({
   segment: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill },
   segmentText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
   empty: { alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: 2 },
-  stat: { flex: 1, minWidth: 150, gap: 2 },
+  // No minWidth: it would fight StatGrid's percentage maxWidth. flex:1 makes
+  // the card fill its grid cell's height.
+  stat: { flex: 1, gap: 2 },
   statValue: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.brand },
 });

@@ -1,6 +1,7 @@
 import {
   BOX_INSTALL_STATUS_LABEL,
   BOX_INSTALL_STATUS_TONE,
+  isFieldBlocked,
   OVERALL_STATUS_LABEL,
   OVERALL_STATUS_TONE,
   PRE_INSTALL_STATUS_LABEL,
@@ -21,6 +22,18 @@ export function overallStatus(s: OverallStatus): { label: string; tone: StatusTo
 
 export function boxInstallStatus(s: BoxInstallStatus): { label: string; tone: StatusTone } {
   return { label: BOX_INSTALL_STATUS_LABEL[s], tone: BOX_INSTALL_STATUS_TONE[s] };
+}
+
+/**
+ * Field-facing pre-install status. Problem states are surfaced to the admin
+ * only; the photographer sees a neutral "On hold" instead of a red flag.
+ *
+ * `retake_required` is intentionally NOT hidden — a retake is a work
+ * instruction, and the photographer must see it to act on it.
+ */
+export function fieldPreInstallStatus(s: PreInstallStatus): { label: string; tone: StatusTone } {
+  if (isFieldBlocked(s)) return { label: 'On hold', tone: 'neutral' };
+  return preInstallStatus(s);
 }
 
 export function syncTone(s: 'queued' | 'uploading' | 'uploaded' | 'failed'): StatusTone {

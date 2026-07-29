@@ -101,6 +101,7 @@ export default function AdminFarmDetail() {
         <Info label="Installer" value={installer?.name} />
         <Info label="Box serial" value={farm.boxSerial} />
         <Info label="Access" value={farm.accessInstructions} />
+        <Info label="Obstructions (from field)" value={farm.obstructionNotes} />
         <Info label="Contact" value={farm.contact ? `${farm.contact.name ?? ''} ${farm.contact.phone ?? ''}`.trim() : undefined} />
         <Info label="Notes" value={farm.notes} />
         <Info label="Drive folder" value={farm.driveFolderUrl ?? 'Created on approval (later phase)'} />

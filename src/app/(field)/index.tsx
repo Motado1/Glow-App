@@ -4,33 +4,38 @@ import { FarmCard } from '@/components/FarmCard';
 import { Header } from '@/components/Header';
 import { SignOutButton } from '@/components/SignOutButton';
 import { SyncChip } from '@/components/SyncChip';
-import { Button, Card, Divider, EmptyState, Row, Screen, Spacer, Stat, Txt } from '@/components/ui';
+import { Button, Card, Divider, EmptyState, Row, Screen, Spacer, Stat, StatGrid, Txt } from '@/components/ui';
 import { repo } from '@/data';
+import { isBoxInstallDone, isFieldBlocked, isPreInstallDone } from '@/domain/status';
+import type { Farm } from '@/domain/types';
 import { optimizeRoute } from '@/features/routing/optimizeRoute';
-import type { Farm, GeoPoint } from '@/domain/types';
+import { resolveStart } from '@/features/routing/startPoint';
 import { formatDuration, formatMiles } from '@/lib/geo';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
+import { useRouteStartStore } from '@/stores/routeStartStore';
 import { colors, spacing } from '@/theme';
-
-const DONE = ['approved', 'complete'];
-const DEFAULT_START: GeoPoint = { lat: 39.74, lng: -104.99 };
 
 export default function Today() {
   const user = useCurrentUser();
   const { data: farms } = useRepoQuery(() => (user ? repo.listFarms({ assignedTo: user.id }) : Promise.resolve([])), [user?.id], ['farms']);
   const [offline, setOffline] = useState(false);
+  const startMode = useRouteStartStore((s) => s.mode);
 
   const mine = farms ?? [];
   const total = mine.length;
-  const completed = mine.filter((f) => DONE.includes(f.preInstallStatus)).length;
+  const completed = mine.filter((f) => isPreInstallDone(f.preInstallStatus)).length;
   const remaining = total - completed;
-  const active = useMemo(() => mine.filter((f) => !DONE.includes(f.preInstallStatus)), [mine]);
+  // Blocked farms (locked gate, bad address…) drop out of the route so the
+  // photographer isn't sent back to a farm they already reported.
+  const active = useMemo(
+    () => mine.filter((f) => !isPreInstallDone(f.preInstallStatus) && !isFieldBlocked(f.preInstallStatus)),
+    [mine],
+  );
   const primaryState = mine[0]?.state ?? 'Your';
-  const start = active.find((f) => f.location)?.location ?? DEFAULT_START;
-  const route = useMemo(() => optimizeRoute(active, start), [active, start]);
-  const recommended = route.stops.slice(0, 6);
-  const firstFarm = recommended[0] ? mine.find((f) => f.id === recommended[0].farmId) : undefined;
+  const start = useMemo(() => resolveStart(startMode, active), [startMode, active]);
+  const route = useMemo(() => optimizeRoute(active, start.point), [active, start.point]);
+  const firstFarm = route.stops[0] ? mine.find((f) => f.id === route.stops[0].farmId) : undefined;
 
   if (user?.role === 'installer') {
     return <InstallerToday name={user?.name} state={primaryState} farms={mine} />;
@@ -38,18 +43,22 @@ export default function Today() {
 
   return (
     <Screen scroll>
-      <Header title={`${primaryState} Assignment`} subtitle={user?.name} right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>} />
+      <Header
+        title={`${primaryState} Assignment`}
+        subtitle={user?.name}
+        right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
+      />
 
       {total === 0 ? (
         <EmptyState icon="🎉" title="No farms assigned" subtitle="You're all caught up — check back later." />
       ) : (
         <>
-          <Row wrap gap={spacing.sm}>
+          <StatGrid>
             <Stat label="Total farms" value={total} />
             <Stat label="Completed" value={completed} tone="success" />
             <Stat label="Remaining" value={remaining} tone="progress" />
-            <Stat label="Recommended today" value={recommended.length} tone="info" />
-          </Row>
+            <Stat label="Driving today" value={formatMiles(route.totalMiles)} tone="info" />
+          </StatGrid>
 
           <Spacer />
           <Card>
@@ -57,8 +66,8 @@ export default function Today() {
             <Txt variant="subtitle">{firstFarm?.name ?? '—'}</Txt>
             {firstFarm ? <Txt variant="caption">{firstFarm.address}</Txt> : null}
             <Txt variant="caption">
-              ≈ {formatMiles(route.totalMiles)} · {formatDuration(route.totalMinutes)} total driving
-              {route.skipped.length ? ` · ${route.skipped.length} missing coordinates` : ''}
+              Starting from {start.label} · ≈ {formatMiles(route.totalMiles)} ·{' '}
+              {formatDuration(route.totalMinutes)} total driving
             </Txt>
             <Spacer size={spacing.sm} />
             <Row gap={spacing.sm}>
@@ -81,12 +90,17 @@ export default function Today() {
           ) : null}
 
           <Divider />
-          <Txt variant="heading">Recommended for today</Txt>
+          <Txt variant="heading">Your farms</Txt>
           <Spacer size={spacing.sm} />
-          {recommended.map((s) => {
+          {route.stops.slice(0, 8).map((s) => {
             const f = mine.find((x) => x.id === s.farmId);
-            return f ? <FarmCard key={f.id} farm={f} onPress={() => router.push(`/(field)/farm/${f.id}` as never)} /> : null;
+            return f ? <FarmCard key={f.id} farm={f} audience="field" onPress={() => router.push(`/(field)/farm/${f.id}` as never)} /> : null;
           })}
+          {route.stops.length > 8 ? (
+            <Txt variant="label" color={colors.brand} onPress={() => router.push('/(field)/farms')}>
+              View all {total} farms →
+            </Txt>
+          ) : null}
         </>
       )}
     </Screen>
@@ -95,26 +109,30 @@ export default function Today() {
 
 function InstallerToday({ name, state, farms }: { name?: string; state: string; farms: Farm[] }) {
   const total = farms.length;
-  const complete = farms.filter((f) => f.boxInstallStatus === 'complete').length;
+  const complete = farms.filter((f) => isBoxInstallDone(f.boxInstallStatus)).length;
   const remaining = total - complete;
-  const attention = farms.filter(
+  const rework = farms.filter(
     (f) => f.boxInstallStatus === 'connectivity_failed' || f.boxInstallStatus === 'correction_required',
   ).length;
-  const todo = farms.filter((f) => f.boxInstallStatus !== 'complete');
+  const todo = farms.filter((f) => !isBoxInstallDone(f.boxInstallStatus));
 
   return (
     <Screen scroll>
-      <Header title={`${state} Installations`} subtitle={name} right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>} />
+      <Header
+        title={`${state} Installations`}
+        subtitle={name}
+        right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
+      />
       {total === 0 ? (
         <EmptyState icon="🎉" title="No installations assigned" subtitle="You're all caught up — check back later." />
       ) : (
         <>
-          <Row wrap gap={spacing.sm}>
+          <StatGrid>
             <Stat label="Assigned" value={total} />
             <Stat label="Complete" value={complete} tone="success" />
             <Stat label="Remaining" value={remaining} tone="progress" />
-            <Stat label="Needs attention" value={attention} tone={attention ? 'danger' : 'neutral'} />
-          </Row>
+            <Stat label="Needs rework" value={rework} tone={rework ? 'warning' : 'neutral'} />
+          </StatGrid>
           <Divider />
           <Txt variant="heading">To install</Txt>
           <Spacer size={spacing.sm} />
@@ -122,7 +140,7 @@ function InstallerToday({ name, state, farms }: { name?: string; state: string; 
             <EmptyState icon="✅" title="All installed" subtitle="Every assigned box is complete." />
           ) : (
             todo.map((f) => (
-              <FarmCard key={f.id} farm={f} phase="box_install" onPress={() => router.push(`/(field)/install/${f.id}` as never)} />
+              <FarmCard key={f.id} farm={f} phase="box_install" audience="field" onPress={() => router.push(`/(field)/install/${f.id}` as never)} />
             ))
           )}
         </>

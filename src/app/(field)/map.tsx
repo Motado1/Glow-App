@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { SignOutButton } from '@/components/SignOutButton';
 import { Button, Screen, Spacer, Txt } from '@/components/ui';
 import { repo } from '@/data';
+import { isBoxInstallDone, isFieldBlocked, isPreInstallDone } from '@/domain/status';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
 import { spacing } from '@/theme';
@@ -18,7 +19,11 @@ export default function FieldMap() {
 
   const isInstaller = user?.role === 'installer';
   const active = (farms ?? []).filter(
-    (f) => f.location && (isInstaller ? f.boxInstallStatus !== 'complete' : !DONE.includes(f.preInstallStatus)),
+    (f) =>
+      f.location &&
+      (isInstaller
+        ? !isBoxInstallDone(f.boxInstallStatus)
+        : !isPreInstallDone(f.preInstallStatus) && !isFieldBlocked(f.preInstallStatus)),
   );
   const markers = active.map((f) => ({ id: f.id, lat: f.location!.lat, lng: f.location!.lng, label: f.name }));
   const selFarm = active.find((f) => f.id === sel);

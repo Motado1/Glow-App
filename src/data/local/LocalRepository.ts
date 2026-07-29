@@ -36,7 +36,7 @@ import type {
   User,
   WorkRole,
 } from '@/domain/types';
-import type { FarmImportRow } from '@/features/import/parseCsv';
+import type { FarmImportRow } from '@/features/import/rows';
 import { nowIso } from '@/lib/date';
 import { uuid } from '@/lib/id';
 import { buildSeed } from './seed';
@@ -223,10 +223,11 @@ export class LocalRepository implements DataRepository {
         ? { lat: row.lat, lng: row.lng }
         : undefined;
       if (existing) {
+        // Blank optional cells must never wipe existing data.
         Object.assign(existing, {
           name: row.name,
-          address: row.address,
-          state: row.state,
+          address: row.address ?? existing.address,
+          state: row.state ?? existing.state,
           region: row.region ?? existing.region,
           hubRecordId: row.hubRecordId ?? existing.hubRecordId,
           location: location ?? existing.location,
@@ -242,9 +243,10 @@ export class LocalRepository implements DataRepository {
           glowFarmId: row.glowFarmId,
           hubRecordId: row.hubRecordId,
           name: row.name,
-          address: row.address,
+          // A coordinates-only import has no address; show the point instead.
+          address: row.address ?? (location ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : ''),
           location,
-          state: row.state,
+          state: row.state ?? '',
           region: row.region,
           overallStatus: 'pre_install_needed',
           preInstallStatus: 'ready_for_assignment',

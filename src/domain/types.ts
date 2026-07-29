@@ -89,6 +89,8 @@ export interface Farm {
   completionDate?: string;
   notes?: string;
   accessInstructions?: string;
+  /** Field-entered access limitations / obstructions (replaces a photo item). */
+  obstructionNotes?: string;
   contact?: ContactInfo;
 
   createdAt: string;
@@ -356,17 +358,23 @@ export type NewNotification = Omit<AppNotification, 'id' | 'createdAt' | 'read'>
 
 /**
  * Assignments are derived from farms (source of truth = farm.assigned*Id),
- * grouped for the admin's assignment view. Not a persisted entity.
+ * grouped for the admin's per-worker dashboard view. Not a persisted entity.
  */
 export interface AssignmentSummary {
   userId: string;
   userName: string;
   role: WorkRole;
-  state: string;
+  /** Every state this worker has farms in. */
+  states: string[];
   farmCount: number;
   completed: number;
   remaining: number;
+  overdue: number;
+  awaitingReview: number;
+  retakes: number;
   farmIds: string[];
+  /** The grouped farms themselves, so sections don't re-scan the full list. */
+  farms: Farm[];
 }
 
 /* ------------------------------ Realtime seam ---------------------------- */

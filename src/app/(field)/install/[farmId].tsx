@@ -293,13 +293,13 @@ export default function InstallScreen() {
         <Field label="Test readings" value={form.readings} onChangeText={(v) => set('readings', v)} placeholder="e.g. RSSI, baseline kWh, server handshake" autoCapitalize="sentences" />
         {form.connectivityStatus === 'failed' ? (
           <Txt variant="caption" color={colors.dangerText} style={{ marginTop: spacing.xs }}>
-            Failed connectivity is flagged as a deficiency for follow-up.
+            We'll let the office know so a follow-up can be scheduled.
           </Txt>
         ) : null}
       </Card>
 
       <Spacer size={spacing.sm} />
-      <Field label="Deficiencies / notes" value={form.problems} onChangeText={(v) => set('problems', v)} placeholder="Anything needing follow-up…" multiline />
+      <Field label="Notes for the office" value={form.problems} onChangeText={(v) => set('problems', v)} placeholder="Anything needing follow-up…" multiline />
       <Spacer size={spacing.sm} />
       <Button title="Save installation details" variant="secondary" icon="💾" onPress={saveRecord} loading={savingRecord} full />
 

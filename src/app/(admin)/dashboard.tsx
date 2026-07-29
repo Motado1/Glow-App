@@ -1,22 +1,29 @@
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { WorkerSection } from '@/components/admin/WorkerSection';
 import { Header } from '@/components/Header';
 import { SyncChip } from '@/components/SyncChip';
-import { Card, Divider, Row, Screen, Spacer, Stat, Txt } from '@/components/ui';
+import { Card, Divider, EmptyState, Row, Screen, SegmentedControl, Spacer, Stat, StatGrid, Txt } from '@/components/ui';
 import { repo } from '@/data';
+import { isPreInstallDone } from '@/domain/status';
+import type { WorkRole } from '@/domain/types';
+import { WORKER_FILTERS, type WorkerFilter } from '@/features/assignments/summarize';
 import { isOverdue, todayIso } from '@/lib/date';
 import { useCurrentUser } from '@/stores/authStore';
+import { useAssignmentSummaries } from '@/stores/useAssignmentSummaries';
 import { useRepoQuery } from '@/stores/useRepoQuery';
 import { colors, radius, spacing } from '@/theme';
-
-const DONE = ['approved', 'complete'];
 
 export default function Dashboard() {
   const user = useCurrentUser();
   const { data: farms } = useRepoQuery(() => repo.listFarms(), [], ['farms']);
   const { data: submissions } = useRepoQuery(() => repo.listSubmissions(), [], ['submissions']);
   const { data: problems } = useRepoQuery(() => repo.listProblems({ resolved: false }), [], ['problems']);
+
+  const [role, setRole] = useState<WorkRole>('photographer');
+  const [filter, setFilter] = useState<WorkerFilter>('all');
+  const summaries = useAssignmentSummaries(farms, role);
 
   const f = farms ?? [];
   const subs = submissions ?? [];
@@ -25,10 +32,10 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     const needsPre = f.filter((x) => x.preInstallStatus === 'ready_for_assignment' || x.preInstallStatus === 'not_ready').length;
-    const assigned = f.filter((x) => x.assignedPhotographerId && !DONE.includes(x.preInstallStatus)).length;
+    const assigned = f.filter((x) => x.assignedPhotographerId && !isPreInstallDone(x.preInstallStatus)).length;
     const awaitingReview = subs.filter((s) => s.status === 'submitted' || s.status === 'under_review').length;
     const retakes = f.filter((x) => x.preInstallStatus === 'retake_required').length;
-    const overdue = f.filter((x) => isOverdue(x.scheduledDate, DONE.includes(x.preInstallStatus))).length;
+    const overdue = f.filter((x) => isOverdue(x.scheduledDate, isPreInstallDone(x.preInstallStatus))).length;
     const approvedToday = f.filter((x) => x.completionDate?.slice(0, 10) === today).length;
     const traveling = new Set(
       f.filter((x) => x.assignedPhotographerId && x.preInstallStatus === 'in_progress').map((x) => x.assignedPhotographerId),
@@ -44,10 +51,12 @@ export default function Dashboard() {
   const byState = useMemo(() => {
     const map = new Map<string, { total: number; done: number }>();
     for (const x of f) {
-      const e = map.get(x.state) ?? { total: 0, done: 0 };
+      // Imported coordinate-only farms may have no state yet.
+      const key = x.state || 'Unspecified';
+      const e = map.get(key) ?? { total: 0, done: 0 };
       e.total++;
-      if (DONE.includes(x.preInstallStatus)) e.done++;
-      map.set(x.state, e);
+      if (isPreInstallDone(x.preInstallStatus)) e.done++;
+      map.set(key, e);
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [f]);
@@ -60,7 +69,7 @@ export default function Dashboard() {
         right={<SyncChip />}
       />
 
-      <Row wrap gap={spacing.sm}>
+      <StatGrid>
         <Stat label="Need pre-install photos" value={stats.needsPre} tone="info" onPress={() => router.push('/(admin)/farms?preset=unassigned' as never)} />
         <Stat label="Currently assigned" value={stats.assigned} tone="progress" onPress={() => router.push('/(admin)/farms?preset=assigned' as never)} />
         <Stat label="Awaiting review" value={stats.awaitingReview} tone="warning" onPress={() => router.push('/(admin)/review')} />
@@ -69,20 +78,50 @@ export default function Dashboard() {
         <Stat label="Approved today" value={stats.approvedToday} tone="success" />
         <Stat label="Photographers traveling" value={stats.traveling} tone="info" />
         <Stat label="Open problems" value={probs.length} tone="danger" onPress={() => router.push('/(admin)/farms?preset=problems' as never)} />
-      </Row>
+      </StatGrid>
 
       <Spacer size={spacing.lg} />
       <Txt variant="heading">Box installation</Txt>
       <Spacer size={spacing.sm} />
-      <Row wrap gap={spacing.sm}>
+      <StatGrid>
         <Stat label="PTO reached" value={stats.ptoReached} tone="info" />
         <Stat label="Ready for install" value={stats.readyForInstall} tone="info" onPress={() => router.push('/(admin)/assignments')} />
         <Stat label="Installs in progress" value={stats.installing} tone="progress" />
         <Stat label="Installed, not connected" value={stats.notConnected} tone="danger" />
         <Stat label="Field ops complete" value={stats.fieldComplete} tone="success" />
-      </Row>
+      </StatGrid>
 
-      <Spacer size={spacing.lg} />
+      <Divider />
+
+      <Txt variant="heading">By {role === 'installer' ? 'installer' : 'photographer'}</Txt>
+      <Spacer size={spacing.sm} />
+      <SegmentedControl
+        options={[
+          { value: 'photographer', label: '📷 Photographers' },
+          { value: 'installer', label: '🔧 Installers' },
+        ]}
+        value={role}
+        onChange={(r) => setRole(r as WorkRole)}
+      />
+      <Spacer size={spacing.sm} />
+      <Txt variant="label">Show</Txt>
+      <Spacer size={spacing.xs} />
+      <SegmentedControl options={WORKER_FILTERS} value={filter} onChange={setFilter} />
+      <Spacer size={spacing.md} />
+
+      {summaries.length === 0 ? (
+        <EmptyState
+          icon="🧭"
+          title={`No ${role === 'installer' ? 'installers' : 'photographers'} assigned`}
+          subtitle="Assign farms from the Assign tab to see them here."
+        />
+      ) : (
+        summaries.map((s, i) => (
+          <WorkerSection key={s.userId} summary={s} filter={filter} defaultOpen={i === 0} />
+        ))
+      )}
+
+      <Divider />
       <Txt variant="heading">By state</Txt>
       <Spacer size={spacing.sm} />
       {byState.map(([state, e]) => {
@@ -103,9 +142,7 @@ export default function Dashboard() {
       })}
 
       <Divider />
-      <Txt variant="caption">
-        Local demo data · {f.length} farms. Tap a metric to drill in.
-      </Txt>
+      <Txt variant="caption">Local demo data · {f.length} farms.</Txt>
     </Screen>
   );
 }

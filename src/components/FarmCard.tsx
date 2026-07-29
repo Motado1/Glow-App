@@ -1,8 +1,11 @@
 import { View } from 'react-native';
-import { boxInstallStatus, preInstallStatus } from '@/components/statusHelpers';
+import { boxInstallStatus, fieldPreInstallStatus, preInstallStatus } from '@/components/statusHelpers';
 import { Badge, Card, Row, StatusPill, Txt } from '@/components/ui';
+import { isFieldRole } from '@/domain/permissions';
+import { isBoxInstallDone, isPreInstallDone } from '@/domain/status';
 import type { Farm } from '@/domain/types';
 import { formatDate, isOverdue } from '@/lib/date';
+import { useCurrentUser } from '@/stores/authStore';
 import { spacing } from '@/theme';
 
 export function FarmCard({
@@ -11,21 +14,27 @@ export function FarmCard({
   assigneeName,
   rightBadge,
   phase = 'pre_install',
+  audience,
 }: {
   farm: Farm;
   onPress?: () => void;
   assigneeName?: string;
   rightBadge?: { label: string; tone: 'neutral' | 'info' | 'progress' | 'warning' | 'danger' | 'success' };
   phase?: 'pre_install' | 'box_install';
+  /** Defaults to the signed-in role, so a field screen can't leak a problem status by omission. */
+  audience?: 'admin' | 'field';
 }) {
+  const user = useCurrentUser();
+  const forField = audience ? audience === 'field' : !!user && isFieldRole(user.role);
   const box = phase === 'box_install';
-  const done = box
-    ? farm.boxInstallStatus === 'complete'
-    : farm.preInstallStatus === 'approved' || farm.preInstallStatus === 'complete';
+  const done = box ? isBoxInstallDone(farm.boxInstallStatus) : isPreInstallDone(farm.preInstallStatus);
   const overdue = box ? false : isOverdue(farm.scheduledDate, done);
   const st = box
     ? boxInstallStatus(farm.boxInstallStatus ?? 'ready_for_assignment')
-    : preInstallStatus(farm.preInstallStatus);
+    : forField
+      ? fieldPreInstallStatus(farm.preInstallStatus)
+      : preInstallStatus(farm.preInstallStatus);
+
   return (
     <Card onPress={onPress} style={{ marginBottom: spacing.sm }}>
       <Row justify="space-between" align="flex-start" gap={spacing.sm}>
