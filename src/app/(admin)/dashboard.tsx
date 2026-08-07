@@ -85,7 +85,7 @@ export default function Dashboard() {
       </StatGrid>
 
       <Spacer size={spacing.lg} />
-      <Txt variant="heading">Box installation</Txt>
+      <Txt variant="overline">Box installation</Txt>
       <Spacer size={spacing.sm} />
       <StatGrid>
         <Stat label="PTO reached" value={stats.ptoReached} tone="info" />
@@ -97,7 +97,7 @@ export default function Dashboard() {
 
       <Divider />
 
-      <Txt variant="heading">By {role === 'installer' ? 'installer' : 'photographer'}</Txt>
+      <Txt variant="overline">By {role === 'installer' ? 'installer' : 'photographer'}</Txt>
       <Spacer size={spacing.sm} />
       <SegmentedControl
         options={[
@@ -126,7 +126,7 @@ export default function Dashboard() {
       )}
 
       <Divider />
-      <Txt variant="heading">By state</Txt>
+      <Txt variant="overline">By state</Txt>
       <Spacer size={spacing.sm} />
       {byState.map(([state, e]) => {
         const pct = e.total ? Math.round((e.done / e.total) * 100) : 0;

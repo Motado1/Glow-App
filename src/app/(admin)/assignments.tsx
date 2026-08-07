@@ -135,7 +135,7 @@ export default function Assignments() {
         unassigned.map((f) => {
           const on = selected.has(f.id);
           return (
-            <Card key={f.id} onPress={() => toggle(f.id)} style={{ marginBottom: spacing.sm, borderColor: on ? colors.brand : colors.border, borderWidth: on ? 2 : 1 }}>
+            <Card key={f.id} onPress={() => toggle(f.id)} style={{ marginBottom: spacing.sm, borderColor: colors.brand, borderWidth: on ? 2 : 0 }}>
               <Row gap={spacing.md}>
                 <Txt variant="title">{on ? '☑️' : '⬜️'}</Txt>
                 <View style={{ flex: 1 }}>
@@ -155,7 +155,7 @@ export default function Assignments() {
       {summaries.length > 0 ? (
         <>
           <Divider />
-          <Txt variant="heading">Current {isInstaller ? 'installers' : 'photographers'}</Txt>
+          <Txt variant="overline">Current {isInstaller ? 'installers' : 'photographers'}</Txt>
           <Spacer size={spacing.sm} />
           {summaries.map(([uid, e]) => (
             <Card key={uid} style={{ marginBottom: spacing.sm }}>

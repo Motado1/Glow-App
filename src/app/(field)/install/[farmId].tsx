@@ -218,7 +218,7 @@ export default function InstallScreen() {
       {farm.boxInstallStatus === 'correction_required' && latestSub?.reviewNote ? (
         <>
           <Spacer size={spacing.sm} />
-          <Card style={{ borderColor: colors.dangerText }}>
+          <Card style={{ borderColor: colors.dangerText, borderWidth: 1 }}>
             <Txt variant="subtitle" color={colors.dangerText}>⚠️ Correction requested</Txt>
             <Txt variant="caption">{latestSub.reviewNote}</Txt>
           </Card>
@@ -229,7 +229,7 @@ export default function InstallScreen() {
 
       {/* Monitoring box + electrical record (§11) */}
       <Divider />
-      <Txt variant="heading">Monitoring box</Txt>
+      <Txt variant="overline">Monitoring box</Txt>
       <Spacer size={spacing.sm} />
       <Card>
         <Row gap={spacing.sm} align="flex-end">
@@ -243,7 +243,7 @@ export default function InstallScreen() {
       </Card>
 
       <Spacer size={spacing.sm} />
-      <Txt variant="heading">Electrical</Txt>
+      <Txt variant="overline">Electrical</Txt>
       <Spacer size={spacing.sm} />
       <Card>
         <Field label="Electrical system type" value={form.electricalSystemType} onChangeText={(v) => set('electricalSystemType', v)} placeholder="Split-phase" autoCapitalize="sentences" />
@@ -262,7 +262,7 @@ export default function InstallScreen() {
       </Card>
 
       <Spacer size={spacing.sm} />
-      <Txt variant="heading">Network</Txt>
+      <Txt variant="overline">Network</Txt>
       <Spacer size={spacing.sm} />
       <Card>
         <SegmentedControl
@@ -281,7 +281,7 @@ export default function InstallScreen() {
       </Card>
 
       <Spacer size={spacing.sm} />
-      <Txt variant="heading">Connectivity test</Txt>
+      <Txt variant="overline">Connectivity test</Txt>
       <Spacer size={spacing.sm} />
       <Card>
         <SegmentedControl
@@ -306,7 +306,7 @@ export default function InstallScreen() {
       {/* Post-install photo checklist */}
       <Divider />
       <Row justify="space-between">
-        <Txt variant="heading">Post-install photos</Txt>
+        <Txt variant="overline">Post-install photos</Txt>
         {photosReady ? <Badge label="Ready" tone="success" /> : <Badge label={`${missing.length} required left`} tone="warning" />}
       </Row>
       <Spacer size={spacing.sm} />

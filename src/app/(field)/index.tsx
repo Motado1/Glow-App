@@ -95,7 +95,7 @@ export default function Today() {
           ) : null}
 
           <Divider />
-          <Txt variant="heading">Your farms</Txt>
+          <Txt variant="overline">Your farms</Txt>
           <Spacer size={spacing.sm} />
           {route.stops.slice(0, 8).map((s) => {
             const f = mine.find((x) => x.id === s.farmId);
@@ -139,7 +139,7 @@ function InstallerToday({ name, state, farms }: { name?: string; state: string; 
             <Stat label="Needs rework" value={rework} tone={rework ? 'warning' : 'neutral'} />
           </StatGrid>
           <Divider />
-          <Txt variant="heading">To install</Txt>
+          <Txt variant="overline">To install</Txt>
           <Spacer size={spacing.sm} />
           {todo.length === 0 ? (
             <EmptyState icon="✅" title="All installed" subtitle="Every assigned box is complete." />

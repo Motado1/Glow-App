@@ -176,7 +176,7 @@ export default function FieldFarmDetail() {
       {farm.preInstallStatus === 'retake_required' ? (
         <>
           <Spacer size={spacing.sm} />
-          <Card style={{ borderColor: colors.dangerText }}>
+          <Card style={{ borderColor: colors.dangerText, borderWidth: 1 }}>
             <Txt variant="subtitle" color={colors.dangerText}>
               ↻ Retakes requested
             </Txt>
@@ -200,7 +200,7 @@ export default function FieldFarmDetail() {
       ) : null}
 
       <Divider />
-      <Txt variant="heading">Pre-install checklist</Txt>
+      <Txt variant="overline">Pre-install checklist</Txt>
       <Spacer size={spacing.sm} />
 
       {progress.map((pr) => (
@@ -241,7 +241,7 @@ export default function FieldFarmDetail() {
       ))}
 
       <Divider />
-      <Txt variant="heading">Access limitations / obstructions</Txt>
+      <Txt variant="overline">Access limitations / obstructions</Txt>
       <Spacer size={spacing.sm} />
       <Card>
         <Field

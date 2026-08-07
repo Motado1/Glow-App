@@ -12,11 +12,11 @@ import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
 import { spacing } from '@/theme';
 
-function Info({ label, value }: { label: string; value?: string }) {
+function Info({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
   return (
-    <Row justify="space-between" gap={spacing.md} align="flex-start" style={{ paddingVertical: 4 }}>
-      <Txt variant="label">{label}</Txt>
-      <Txt variant="body" style={{ flex: 1 }} align="right" numberOfLines={3}>
+    <Row justify="space-between" gap={spacing.md} align="flex-start" style={{ paddingVertical: 5 }}>
+      <Txt variant="overline">{label}</Txt>
+      <Txt variant={mono ? 'mono' : 'body'} style={{ flex: 1 }} align="right" numberOfLines={3}>
         {value ?? '—'}
       </Txt>
     </Row>
@@ -89,17 +89,17 @@ export default function AdminFarmDetail() {
       ) : null}
 
       <Card>
-        <Info label="Glow Farm ID" value={farm.glowFarmId} />
-        <Info label="Hub Record" value={farm.hubRecordId} />
+        <Info label="Glow Farm ID" value={farm.glowFarmId} mono />
+        <Info label="Hub Record" value={farm.hubRecordId} mono />
         <Info label="Address" value={farm.address} />
         <Info label="State / Region" value={`${farm.state}${farm.region ? ` · ${farm.region}` : ''}`} />
-        <Info label="Coordinates" value={farm.location ? `${farm.location.lat.toFixed(4)}, ${farm.location.lng.toFixed(4)}` : 'Missing'} />
+        <Info label="Coordinates" value={farm.location ? `${farm.location.lat.toFixed(4)}, ${farm.location.lng.toFixed(4)}` : 'Missing'} mono />
         <Info label="PTO status" value={farm.ptoStatus === 'reached' ? 'Reached' : 'Not reached'} />
         <Info label="Scheduled" value={formatDate(farm.scheduledDate)} />
         <Info label="Completed" value={formatDate(farm.completionDate)} />
         <Info label="Photographer" value={assignee?.name} />
         <Info label="Installer" value={installer?.name} />
-        <Info label="Box serial" value={farm.boxSerial} />
+        <Info label="Box serial" value={farm.boxSerial} mono />
         <Info label="Access" value={farm.accessInstructions} />
         <Info label="Obstructions (from field)" value={farm.obstructionNotes} />
         <Info label="Contact" value={farm.contact ? `${farm.contact.name ?? ''} ${farm.contact.phone ?? ''}`.trim() : undefined} />
@@ -110,10 +110,10 @@ export default function AdminFarmDetail() {
       {boxInstall ? (
         <>
           <Spacer />
-          <Txt variant="heading">Monitoring box installation</Txt>
+          <Txt variant="overline">Monitoring box installation</Txt>
           <Spacer size={spacing.sm} />
           <Card>
-            <Info label="Box serial" value={boxInstall.boxSerial} />
+            <Info label="Box serial" value={boxInstall.boxSerial} mono />
             <Info label="Installer" value={installer?.name} />
             <Info label="Installed" value={formatDate(boxInstall.installedAt)} />
             <Info label="Network" value={boxInstall.networkType || undefined} />
@@ -159,7 +159,7 @@ export default function AdminFarmDetail() {
       {photos && photos.length > 0 ? (
         <>
           <Divider />
-          <Txt variant="heading">Photos ({photos.length})</Txt>
+          <Txt variant="overline">Photos ({photos.length})</Txt>
           <Spacer size={spacing.sm} />
           <Row wrap gap={spacing.sm}>
             {photos.map((p) => (
@@ -175,7 +175,7 @@ export default function AdminFarmDetail() {
       ) : null}
 
       <Divider />
-      <Txt variant="heading">Activity history</Txt>
+      <Txt variant="overline">Activity history</Txt>
       <Spacer size={spacing.sm} />
       {(activity ?? []).map((a) => (
         <Row key={a.id} gap={spacing.sm} align="flex-start" style={{ marginBottom: spacing.sm }}>

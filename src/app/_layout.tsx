@@ -1,3 +1,11 @@
+// Imported from per-weight subpaths, NOT the package root: the root re-exports
+// all 18 faces (every weight + italics), and Metro would bundle ~5.9 MB of TTFs
+// into the web build. These four are the only faces the theme uses.
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -21,13 +29,23 @@ export default function RootLayout() {
   const session = useAuthStore((s) => s.session);
   const role = session?.user.role ?? null;
 
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+  // Wait for both the session and the brand type before revealing the app,
+  // so nothing renders in a fallback face and reflows.
+  const ready = hydrated && fontsLoaded;
+
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
 
   useEffect(() => {
-    if (hydrated) SplashScreen.hideAsync().catch(() => {});
-  }, [hydrated]);
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
 
   return (
     <GestureHandlerRootView style={styles.flex}>
@@ -46,7 +64,7 @@ export default function RootLayout() {
             </Stack.Protected>
           </Stack>
         </SyncProvider>
-        {!hydrated ? (
+        {!ready ? (
           <GlowGradient style={styles.splash}>
             <GlowLockup height={40} />
             <Txt variant="label" color={colors.text}>

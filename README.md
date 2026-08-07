@@ -82,6 +82,14 @@ vectors are taken verbatim from the official brand kit — nothing is approximat
 - **Logo** (`src/components/brand/GlowLogo.tsx`): the 8-petal symbol and the "Glow" wordmark
   rendered from the brand kit's own vector paths, so they're crisp at any size and need no font
   licence. App icon, favicon, splash and Android adaptive icons are generated from the same symbol.
+- **Type** — Inter (400/500/600/700) stands in for the brand grotesk: the closest free match,
+  identical across iOS/Android/web. Imported from per-weight subpaths, not the package root,
+  which would bundle all 18 faces (~5.9 MB) instead of the 4 in use (1.3 MB). Swap
+  `fontFamily.sans` in `src/theme/index.ts` if the licensed face becomes available.
+- **Site language carried into the app** (from glow.org): uppercase letterspaced micro-labels
+  (`Txt variant="overline"`) for section markers, **monospace for data readouts** — Glow farm
+  IDs, serials, coordinates — the way the site sets its hex values, and surfaces separated by
+  soft grey fills rather than outlines.
 - Status colours (green/amber/red) are **functional, not brand** — kept legible but desaturated
   to sit comfortably alongside the pastels.
 

@@ -6,7 +6,7 @@ import { isBoxInstallDone, isPreInstallDone } from '@/domain/status';
 import type { Farm } from '@/domain/types';
 import { formatDate, isOverdue } from '@/lib/date';
 import { useCurrentUser } from '@/stores/authStore';
-import { spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
 
 export function FarmCard({
   farm,
@@ -42,9 +42,14 @@ export function FarmCard({
           <Txt variant="subtitle" numberOfLines={1}>
             {farm.name}
           </Txt>
-          <Txt variant="caption" numberOfLines={1}>
-            {farm.glowFarmId} · {farm.address}
-          </Txt>
+          <Row gap={spacing.sm} align="center">
+            <Txt variant="mono" color={colors.textMuted}>
+              {farm.glowFarmId}
+            </Txt>
+            <Txt variant="caption" numberOfLines={1} style={{ flex: 1 }}>
+              {farm.address}
+            </Txt>
+          </Row>
         </View>
         {rightBadge ? <Badge label={rightBadge.label} tone={rightBadge.tone} /> : overdue ? <Badge label="Overdue" tone="danger" /> : null}
       </Row>

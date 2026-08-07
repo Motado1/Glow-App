@@ -47,7 +47,7 @@ export default function More() {
       <Header title="More" subtitle={user ? `${user.name} · ${ROLE_LABEL[user.role]}` : ''} />
 
       <Row justify="space-between">
-        <Txt variant="heading">Notifications{unread ? ` (${unread})` : ''}</Txt>
+        <Txt variant="overline">Notifications{unread ? ` (${unread})` : ''}</Txt>
         {unread ? <Button small variant="ghost" title="Mark all read" onPress={markAll} /> : null}
       </Row>
       <Spacer size={spacing.sm} />
@@ -72,7 +72,7 @@ export default function More() {
       )}
 
       <Divider />
-      <Txt variant="heading">Open problems ({(problems ?? []).length})</Txt>
+      <Txt variant="overline">Open problems ({(problems ?? []).length})</Txt>
       <Spacer size={spacing.sm} />
       {(problems ?? []).length === 0 ? (
         <Txt variant="caption">No open problems.</Txt>

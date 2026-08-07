@@ -18,7 +18,17 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
-import { colors, fontSize, fontWeight, radius, spacing, toneColors, type StatusTone } from '@/theme';
+import {
+  colors,
+  fontFamily,
+  fontSize,
+  fontWeight,
+  overlineStyle,
+  radius,
+  spacing,
+  toneColors,
+  type StatusTone,
+} from '@/theme';
 
 /* -------------------------------- Screen -------------------------------- */
 
@@ -54,16 +64,31 @@ export function Screen({
 
 /* --------------------------------- Text --------------------------------- */
 
-type TxtVariant = 'display' | 'title' | 'heading' | 'subtitle' | 'body' | 'label' | 'caption';
+type TxtVariant =
+  | 'display'
+  | 'title'
+  | 'heading'
+  | 'subtitle'
+  | 'body'
+  | 'label'
+  | 'caption'
+  /** Uppercase, letterspaced micro-label — glow.org's section marker. */
+  | 'overline'
+  /** Data readout: IDs, serials, coordinates. */
+  | 'mono';
 
+// Large type is set light and tight, the way the site sets its headings;
+// small type stays at readable app density rather than marketing scale.
 const TXT: Record<TxtVariant, TextStyle> = {
-  display: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text },
-  title: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text },
-  heading: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text },
-  subtitle: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: colors.text },
-  body: { fontSize: fontSize.md, fontWeight: fontWeight.regular, color: colors.text },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: colors.textMuted },
-  caption: { fontSize: fontSize.xs, fontWeight: fontWeight.regular, color: colors.textFaint },
+  display: { fontFamily: fontFamily.sansBold, fontSize: fontSize.xxl, letterSpacing: -0.8, lineHeight: fontSize.xxl * 1.15, color: colors.text },
+  title: { fontFamily: fontFamily.sansSemibold, fontSize: fontSize.xl, letterSpacing: -0.5, lineHeight: fontSize.xl * 1.2, color: colors.text },
+  heading: { fontFamily: fontFamily.sansSemibold, fontSize: fontSize.lg, letterSpacing: -0.3, lineHeight: fontSize.lg * 1.3, color: colors.text },
+  subtitle: { fontFamily: fontFamily.sansMedium, fontSize: fontSize.md, lineHeight: fontSize.md * 1.4, color: colors.text },
+  body: { fontFamily: fontFamily.sans, fontSize: fontSize.md, lineHeight: fontSize.md * 1.5, color: colors.text },
+  label: { fontFamily: fontFamily.sansMedium, fontSize: fontSize.sm, lineHeight: fontSize.sm * 1.4, color: colors.textMuted },
+  caption: { fontFamily: fontFamily.sans, fontSize: fontSize.sm, lineHeight: fontSize.sm * 1.4, color: colors.textFaint },
+  overline: overlineStyle,
+  mono: { fontFamily: fontFamily.mono, fontSize: fontSize.sm, letterSpacing: 0.2, color: colors.text },
 };
 
 export function Txt({
@@ -374,7 +399,7 @@ export function Stat({ label, value, tone, onPress }: { label: string; value: st
   return (
     <Card onPress={onPress} style={[styles.stat, c ? { borderLeftWidth: 3, borderLeftColor: c.text } : null]}>
       <Text style={styles.statValue}>{value}</Text>
-      <Txt variant="caption" numberOfLines={2}>
+      <Txt variant="overline" numberOfLines={2}>
         {label}
       </Txt>
     </Card>
@@ -386,11 +411,11 @@ export function Stat({ label, value, tone, onPress }: { label: string; value: st
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
+  // Surfaces are separated by a soft grey fill rather than an outline, the way
+  // glow.org blocks out its sections.
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   btn: {
     paddingVertical: spacing.md,
@@ -399,9 +424,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnText: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  badge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' },
-  badgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.medium },
+  btnText: { fontFamily: fontFamily.sansSemibold, fontSize: fontSize.md, letterSpacing: -0.1 },
+  badge: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.sm, alignSelf: 'flex-start' },
+  badgeText: { fontFamily: fontFamily.sansMedium, fontSize: fontSize.xs, letterSpacing: 0.2 },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,22 +437,28 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  pillText: { fontSize: fontSize.xs, fontWeight: fontWeight.medium },
+  pillText: { fontFamily: fontFamily.sansMedium, fontSize: fontSize.xs, letterSpacing: 0.2 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    fontFamily: fontFamily.sans,
     fontSize: fontSize.md,
     color: colors.text,
   },
   segment: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill },
-  segmentText: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+  segmentText: { fontFamily: fontFamily.sansMedium, fontSize: fontSize.sm },
   empty: { alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, gap: 2 },
   // No minWidth: it would fight StatGrid's percentage maxWidth. flex:1 makes
   // the card fill its grid cell's height.
   stat: { flex: 1, gap: 2 },
-  statValue: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.brand },
+  statValue: {
+    fontFamily: fontFamily.sansBold,
+    fontSize: fontSize.xxl,
+    letterSpacing: -1,
+    color: colors.brand,
+  },
 });
