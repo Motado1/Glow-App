@@ -13,9 +13,11 @@ export default function FieldLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.brand,
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textFaint,
+        tabBarActiveBackgroundColor: colors.surface,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        tabBarLabelStyle: { fontWeight: '600' },
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Today', tabBarIcon: tabIcon('☀️') }} />

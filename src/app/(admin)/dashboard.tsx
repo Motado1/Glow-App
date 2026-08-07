@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { WorkerSection } from '@/components/admin/WorkerSection';
+import { GlowLockup } from '@/components/brand/GlowLogo';
 import { Header } from '@/components/Header';
 import { SyncChip } from '@/components/SyncChip';
 import { Card, Divider, EmptyState, Row, Screen, SegmentedControl, Spacer, Stat, StatGrid, Txt } from '@/components/ui';
@@ -63,6 +64,9 @@ export default function Dashboard() {
 
   return (
     <Screen scroll>
+      <View style={{ marginBottom: spacing.lg }}>
+        <GlowLockup height={22} />
+      </View>
       <Header
         title={`Hi, ${user?.name?.split(' ')[0] ?? 'there'}`}
         subtitle="Field operations"
@@ -135,7 +139,7 @@ export default function Dashboard() {
               </Txt>
             </Row>
             <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: radius.pill, marginTop: spacing.sm, overflow: 'hidden' }}>
-              <View style={{ width: `${pct}%`, height: 8, backgroundColor: colors.brandSoft }} />
+              <View style={{ width: `${pct}%`, height: 8, backgroundColor: colors.accent }} />
             </View>
           </Card>
         );

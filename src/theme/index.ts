@@ -1,47 +1,85 @@
 /**
- * Central design tokens for the Glow Field Operations app.
+ * Glow design tokens.
+ *
+ * Colours are taken verbatim from the Glow brand guidelines (May 2025):
+ * a monochrome core (black / white / two greys) with orange as an accent
+ * *only*, plus the pastel brand gradients for large hero surfaces.
  *
  * Deliberately framework-free (no NativeWind) so the same tokens drive
- * StyleSheet primitives reliably on iOS, Android, and web. Keep all colour,
- * spacing, radius, and type decisions here so screens stay consistent.
+ * StyleSheet primitives reliably on iOS, Android, and web.
  */
 
+/** Brand palette, exactly as published. */
+export const brandPalette = {
+  black: '#050505',
+  white: '#FFFFFF',
+  mediumGrey: '#F3F3F3',
+  lightGrey: '#FAFAFA',
+  /** Accent only — used for UI emphasis, never as a background wash. */
+  orange: '#FFB472',
+} as const;
+
+/** Brand gradient stops (from the official gradient SVGs). */
+export const gradientStops = {
+  yellow: '#F7FCC4',
+  mint: '#CCFFD4',
+  lavender: '#DCC4FF',
+} as const;
+
+/**
+ * The four published gradients. Rendered at the brand's diagonal
+ * (the source SVGs run roughly top-left → bottom-right at ~37°).
+ */
+export const gradients = {
+  full: [gradientStops.yellow, gradientStops.mint, gradientStops.lavender],
+  a: [gradientStops.mint, gradientStops.lavender],
+  b: [gradientStops.yellow, gradientStops.mint],
+  c: [gradientStops.lavender, gradientStops.yellow],
+} as const;
+
+/** Matches the source SVG's gradient vector. */
+export const gradientDirection = { start: { x: 0.1, y: 0 }, end: { x: 0.9, y: 1 } };
+/** Colour stop positions for `gradients.full`. */
+export const gradientFullLocations = [0, 0.337, 1];
+
 export const colors = {
-  // Brand — Glow is solar + agriculture: deep field green with a solar "glow" amber.
-  brand: '#0B3D2E',
-  brandSoft: '#12704F',
-  brandFaint: '#E7F1EC',
-  accent: '#F2A900',
-  accentSoft: '#FFE3A3',
+  // ---- Brand ----
+  brand: brandPalette.black,
+  brandSoft: '#2E2E2E',
+  brandFaint: brandPalette.mediumGrey,
+  accent: brandPalette.orange,
+  accentSoft: '#FFE3C9',
 
-  // Surfaces
-  bg: '#F4F7F5',
-  surface: '#FFFFFF',
-  surfaceAlt: '#EFF3F0',
-  border: '#DDE6E0',
-  borderStrong: '#C6D3CB',
+  // ---- Surfaces ----
+  bg: brandPalette.lightGrey,
+  surface: brandPalette.white,
+  surfaceAlt: brandPalette.mediumGrey,
+  border: '#E7E7E7',
+  borderStrong: '#D6D6D6',
 
-  // Text
-  text: '#13211B',
-  textMuted: '#5C6B63',
-  textFaint: '#8A968F',
-  textInverse: '#FFFFFF',
+  // ---- Text ----
+  text: brandPalette.black,
+  textMuted: '#5A5A5A',
+  textFaint: '#8C8C8C',
+  textInverse: brandPalette.white,
 
-  // Semantic tones (used by StatusPill + Badge)
-  neutralBg: '#EAEEEB',
-  neutralText: '#4E5C55',
-  infoBg: '#E6F0FA',
-  infoText: '#1C6BB0',
-  progressBg: '#E7EEFB',
+  // ---- Semantic status tones ----
+  // Functional, not brand colours, so they stay legible — but desaturated to
+  // sit comfortably next to the brand's soft pastels.
+  neutralBg: '#EFEFEF',
+  neutralText: '#5A5A5A',
+  infoBg: '#E9EEF6',
+  infoText: '#3C5878',
+  progressBg: '#EAF0FA',
   progressText: '#3A5BD0',
-  warningBg: '#FBF0DA',
-  warningText: '#9A6400',
+  warningBg: '#FFF0DF',
+  warningText: '#A05A15',
   dangerBg: '#FBE7E7',
-  dangerText: '#B62B2B',
+  dangerText: '#B32D2D',
   successBg: '#E4F4EA',
   successText: '#1B7A3D',
 
-  overlay: 'rgba(9, 24, 18, 0.45)',
+  overlay: 'rgba(5, 5, 5, 0.45)',
 } as const;
 
 export const spacing = {
@@ -94,5 +132,5 @@ export const toneColors: Record<StatusTone, { bg: string; text: string }> = {
   success: { bg: colors.successBg, text: colors.successText },
 };
 
-export const theme = { colors, spacing, radius, fontSize, fontWeight, toneColors };
+export const theme = { colors, spacing, radius, fontSize, fontWeight, toneColors, gradients };
 export type Theme = typeof theme;

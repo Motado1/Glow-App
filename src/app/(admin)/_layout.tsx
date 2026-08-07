@@ -13,9 +13,12 @@ export default function AdminLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.brand,
+        // Orange is the brand's UI accent — used here for the active state.
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textFaint,
+        tabBarActiveBackgroundColor: colors.surface,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        tabBarLabelStyle: { fontWeight: '600' },
       }}
     >
       <Tabs.Screen name="dashboard" options={{ title: 'Dashboard', tabBarIcon: tabIcon('📊') }} />

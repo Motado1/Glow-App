@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { View } from 'react-native';
 import { FarmCard } from '@/components/FarmCard';
+import { GlowLockup } from '@/components/brand/GlowLogo';
 import { Header } from '@/components/Header';
 import { SignOutButton } from '@/components/SignOutButton';
 import { SyncChip } from '@/components/SyncChip';
@@ -43,6 +45,9 @@ export default function Today() {
 
   return (
     <Screen scroll>
+      <View style={{ marginBottom: spacing.lg }}>
+        <GlowLockup height={22} />
+      </View>
       <Header
         title={`${primaryState} Assignment`}
         subtitle={user?.name}

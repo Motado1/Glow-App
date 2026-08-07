@@ -67,6 +67,24 @@ Use **More → Reset demo data** to start over.
 The dashboard's **Box installation** row tracks PTO reached, ready-for-install, in-progress,
 installed-but-not-connected, and field-ops-complete counts.
 
+## Branding
+
+Styled to the **Glow brand guidelines (May 2025)**. Colours, gradient stops, and the logo
+vectors are taken verbatim from the official brand kit — nothing is approximated.
+
+- **Palette** (`src/theme/index.ts`): black `#050505`, white `#FFFFFF`, medium grey `#F3F3F3`,
+  light grey `#FAFAFA`, and orange `#FFB472`. Per the guide, orange is an **accent only** — it's
+  used as a fill (progress bars, emphasis), never as small text, where the pastel tone would
+  fail contrast on white.
+- **Gradients** (`src/components/brand/GlowGradient.tsx`): the published stops
+  `#F7FCC4 → #CCFFD4 (33.7%) → #DCC4FF` at the brand's diagonal, reserved for hero surfaces
+  (login, splash) as the guide intends — never behind body copy.
+- **Logo** (`src/components/brand/GlowLogo.tsx`): the 8-petal symbol and the "Glow" wordmark
+  rendered from the brand kit's own vector paths, so they're crisp at any size and need no font
+  licence. App icon, favicon, splash and Android adaptive icons are generated from the same symbol.
+- Status colours (green/amber/red) are **functional, not brand** — kept legible but desaturated
+  to sit comfortably alongside the pastels.
+
 ## Architecture
 
 Everything the UI touches goes through three swap-in **seams**, so a real cloud backend

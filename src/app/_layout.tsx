@@ -5,6 +5,8 @@ import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GlowGradient } from '@/components/brand/GlowGradient';
+import { GlowLockup } from '@/components/brand/GlowLogo';
 import { SyncProvider } from '@/components/providers';
 import { Txt } from '@/components/ui';
 import { isAdminRole } from '@/domain/permissions';
@@ -30,7 +32,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <SyncProvider>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
             <Stack.Protected guard={!session}>
@@ -45,15 +47,13 @@ export default function RootLayout() {
           </Stack>
         </SyncProvider>
         {!hydrated ? (
-          <View style={styles.splash} pointerEvents="none">
-            <Txt variant="display" color={colors.textInverse}>
-              Glow
-            </Txt>
-            <Txt variant="subtitle" color={colors.accentSoft}>
+          <GlowGradient style={styles.splash}>
+            <GlowLockup height={40} />
+            <Txt variant="label" color={colors.text}>
               Field Operations
             </Txt>
-            <ActivityIndicator color={colors.textInverse} style={{ marginTop: 16 }} />
-          </View>
+            <ActivityIndicator color={colors.brand} style={{ marginTop: 16 }} />
+          </GlowGradient>
         ) : null}
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -68,9 +68,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 8,
   },
 });
