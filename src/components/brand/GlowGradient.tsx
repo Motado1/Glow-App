@@ -9,15 +9,19 @@ import type { ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { gradientDirection, gradientFullLocations, gradients } from '@/theme';
+import { GlowGrid } from './GlowGrid';
 
 type GradientName = keyof typeof gradients;
 
 export function GlowGradient({
   name = 'full',
+  texture = false,
   style,
   children,
 }: {
   name?: GradientName;
+  /** Layer the Glow Grid device over the gradient, as the site does. */
+  texture?: boolean;
   style?: StyleProp<ViewStyle>;
   children?: ReactNode;
 }) {
@@ -34,6 +38,7 @@ export function GlowGradient({
       end={gradientDirection.end}
       style={style}
     >
+      {texture ? <GlowGrid /> : null}
       {children}
     </LinearGradient>
   );

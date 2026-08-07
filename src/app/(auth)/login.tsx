@@ -38,6 +38,7 @@ export default function Login() {
     <Screen scroll padded={false}>
       {/* Brand hero — the gradient is reserved for surfaces like this. */}
       <GlowGradient
+        texture
         style={{
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.xxl,

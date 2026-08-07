@@ -82,6 +82,9 @@ vectors are taken verbatim from the official brand kit — nothing is approximat
 - **Logo** (`src/components/brand/GlowLogo.tsx`): the 8-petal symbol and the "Glow" wordmark
   rendered from the brand kit's own vector paths, so they're crisp at any size and need no font
   licence. App icon, favicon, splash and Android adaptive icons are generated from the same symbol.
+- **Glow Grid** (`src/components/brand/GlowGrid.tsx`): the brand's lattice graphic device, layered
+  at low opacity over the gradient heroes as the site layers it. It's a regular 12×12 lattice, so
+  it's generated parametrically rather than embedding ~4.5 KB of equivalent path data.
 - **Type** — Inter (400/500/600/700) stands in for the brand grotesk: the closest free match,
   identical across iOS/Android/web. Imported from per-weight subpaths, not the package root,
   which would bundle all 18 faces (~5.9 MB) instead of the 4 in use (1.3 MB). Swap

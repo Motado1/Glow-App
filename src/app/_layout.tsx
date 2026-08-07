@@ -65,7 +65,7 @@ export default function RootLayout() {
           </Stack>
         </SyncProvider>
         {!ready ? (
-          <GlowGradient style={styles.splash}>
+          <GlowGradient texture style={styles.splash}>
             <GlowLockup height={40} />
             <Txt variant="label" color={colors.text}>
               Field Operations
