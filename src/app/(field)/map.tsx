@@ -30,7 +30,7 @@ export default function FieldMap() {
 
   return (
     <Screen>
-      <Header title="Map" subtitle={`${markers.length} stops plotted`} right={<SignOutButton />} />
+      <Header eyebrow="Assignment" title="Map" subtitle={`${markers.length} stops plotted`} right={<SignOutButton />} />
       <FarmMap markers={markers} selectedId={sel} onSelect={setSel} />
       <Spacer />
       {selFarm ? (
@@ -38,7 +38,7 @@ export default function FieldMap() {
           <Txt variant="subtitle">{selFarm.name}</Txt>
           <Txt variant="caption">{selFarm.address}</Txt>
           <Spacer size={spacing.sm} />
-          <Button title="Open farm" icon="📋" onPress={() => router.push((isInstaller ? `/(field)/install/${selFarm.id}` : `/(field)/farm/${selFarm.id}`) as never)} full />
+          <Button title="Open farm" icon="file" onPress={() => router.push((isInstaller ? `/(field)/install/${selFarm.id}` : `/(field)/farm/${selFarm.id}`) as never)} full />
         </>
       ) : (
         <Txt variant="caption">Tap a pin to see the farm.</Txt>

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Header } from '@/components/Header';
-import { Button, Card, Divider, EmptyState, Row, Screen, SegmentedControl, Spacer, Txt } from '@/components/ui';
+import { GlowIcon } from '@/components/brand/GlowIcon';
+import { Button, Card, Divider, EmptyState, IconLine, Row, Screen, SegmentedControl, Spacer, Txt } from '@/components/ui';
 import { repo } from '@/data';
 import { isBoxInstallDone, isPreInstallDone } from '@/domain/status';
 import type { WorkRole } from '@/domain/types';
@@ -78,10 +79,17 @@ export default function Assignments() {
 
   return (
     <Screen scroll>
-      <Header title="Assign work" subtitle={`${unassigned.length} ${isInstaller ? 'ready for install' : 'unassigned pre-install'}`} />
+      <Header
+        eyebrow="Dispatch"
+        title="Assign work"
+        subtitle={`${unassigned.length} ${isInstaller ? 'ready for install' : 'waiting on a photographer'}`}
+      />
 
       <SegmentedControl
-        options={[{ value: 'photographer', label: '📷 Photography' }, { value: 'installer', label: '🔧 Box install' }]}
+        options={[
+          { value: 'photographer', label: 'Photography', icon: 'camera' },
+          { value: 'installer', label: 'Box install', icon: 'box' },
+        ]}
         value={mode}
         onChange={switchMode}
       />
@@ -116,18 +124,17 @@ export default function Assignments() {
             loading={busy}
             disabled={selected.size === 0}
             full
-            icon="🧭"
+            icon="assign"
           />
         </>
       ) : (
-        <Txt variant="caption">No active {mode}s.</Txt>
+        <Txt variant="caption">No active {mode === 'installer' ? 'installers' : 'photographers'} to assign to.</Txt>
       )}
 
       <Divider />
 
       {unassigned.length === 0 ? (
         <EmptyState
-          icon="✅"
           title="Nothing to assign"
           subtitle={isInstaller ? 'No farms are waiting for a box install.' : 'Every ready farm has a photographer.'}
         />
@@ -137,7 +144,7 @@ export default function Assignments() {
           return (
             <Card key={f.id} onPress={() => toggle(f.id)} style={{ marginBottom: spacing.sm, borderColor: colors.brand, borderWidth: on ? 2 : 0 }}>
               <Row gap={spacing.md}>
-                <Txt variant="title">{on ? '☑️' : '⬜️'}</Txt>
+                <GlowIcon name={on ? 'checkbox-on' : 'checkbox-off'} size={22} color={on ? colors.brand : colors.borderStrong} />
                 <View style={{ flex: 1 }}>
                   <Txt variant="subtitle" numberOfLines={1}>
                     {f.name}
@@ -160,7 +167,9 @@ export default function Assignments() {
           {summaries.map(([uid, e]) => (
             <Card key={uid} style={{ marginBottom: spacing.sm }}>
               <Row justify="space-between">
-                <Txt variant="subtitle">👤 {nameOf(uid)}</Txt>
+                <IconLine icon="user" variant="subtitle" size={15} color={colors.text}>
+                  {nameOf(uid)}
+                </IconLine>
                 <Txt variant="label">
                   {e.done}/{e.count} complete
                 </Txt>

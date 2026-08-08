@@ -35,7 +35,7 @@ export default function ProblemScreen() {
 
   return (
     <Screen scroll>
-      <Header title="Report a problem" subtitle={farm?.glowFarmId} onBack={() => router.back()} />
+      <Header eyebrow={farm?.glowFarmId} title="Flag an issue" onBack={() => router.back()} />
       <Txt variant="label">What's the issue?</Txt>
       <Spacer size={spacing.sm} />
       <Row wrap gap={spacing.sm}>
@@ -62,7 +62,7 @@ export default function ProblemScreen() {
       <Spacer />
       <Field label="Notes (optional)" value={note} onChangeText={setNote} placeholder="Add any detail…" multiline />
       <Spacer />
-      <Button title="Submit problem" icon="⚠️" onPress={submit} disabled={!type} loading={busy} full />
+      <Button title="Send to the office" icon="alert" onPress={submit} disabled={!type} loading={busy} full />
     </Screen>
   );
 }

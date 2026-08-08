@@ -85,15 +85,28 @@ export const colors = {
 /* ------------------------------ Typography ------------------------------ */
 
 /**
- * Inter stands in for the brand's grotesk: it's the closest free match and
- * keeps type identical across iOS, Android and web. Swap `sans` here if the
- * licensed brand face becomes available — nothing else needs to change.
+ * The Glow brand faces are **Söhne** (Klim Type Foundry) for sans and
+ * **Duplicate Slab** (e-Types) for the secondary serif. Both are commercially
+ * licensed, so they can't be bundled here without Glow's licence files.
+ *
+ * Archivo is the stand-in. Söhne is drawn on Akzidenz-Grotesk bones; Archivo is
+ * too, so it carries the same slightly-squared terminals and tight apertures —
+ * where Inter (the obvious free grotesque, and the default on every generated
+ * app) is a screen-first Helvetica descendant that reads as generic here.
+ *
+ * TO SWAP IN THE REAL FACE — two steps, nothing else changes:
+ *   1. Drop Söhne .ttf/.otf into `assets/fonts/` and register them in the
+ *      `useFonts({...})` call in `src/app/_layout.tsx`.
+ *   2. Point the four `sans*` tokens below at those family names.
+ *
+ * Duplicate Slab is intentionally unused: glow.org sets its display copy in the
+ * sans, so a slab serif here would be off-register for a data-dense tool.
  */
 export const fontFamily = {
-  sans: 'Inter_400Regular',
-  sansMedium: 'Inter_500Medium',
-  sansSemibold: 'Inter_600SemiBold',
-  sansBold: 'Inter_700Bold',
+  sans: 'Archivo_400Regular',
+  sansMedium: 'Archivo_500Medium',
+  sansSemibold: 'Archivo_600SemiBold',
+  sansBold: 'Archivo_700Bold',
   /** Data readouts (IDs, serials, coordinates) — as glow.org sets its hex values. */
   mono: Platform.select({
     ios: 'Menlo',
@@ -134,6 +147,13 @@ export const fontWeight = {
   medium: '600',
   bold: '700',
 } as const;
+
+/**
+ * Fixed-width digits. Applied to every figure that changes in place — dashboard
+ * counts, progress readouts, route distances — so numbers don't shuffle
+ * sideways as they update. Degrades to proportional figures where unsupported.
+ */
+export const tabularNums: TextStyle = { fontVariant: ['tabular-nums'] };
 
 /** Signature site treatment: small, uppercase, widely letterspaced. */
 export const overlineStyle: TextStyle = {

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { memo, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { GlowIcon } from '@/components/brand/GlowIcon';
 import { FarmCard } from '@/components/FarmCard';
 import { Badge, Card, Row, Spacer, Txt } from '@/components/ui';
 import type { AssignmentSummary } from '@/domain/types';
@@ -36,9 +37,12 @@ export const WorkerSection = memo(function WorkerSection({
       <Card onPress={() => setOpen((o) => !o)}>
         <Row justify="space-between" gap={spacing.sm}>
           <View style={{ flex: 1 }}>
-            <Txt variant="subtitle" numberOfLines={1}>
-              {open ? '▾' : '▸'} 👤 {summary.userName}
-            </Txt>
+            <Row gap={7}>
+              <GlowIcon name={open ? 'chevron-down' : 'chevron-right'} size={14} color={colors.textMuted} />
+              <Txt variant="subtitle" numberOfLines={1} style={{ flex: 1 }}>
+                {summary.userName}
+              </Txt>
+            </Row>
             <Txt variant="caption" numberOfLines={1}>
               {summary.states.join(', ') || 'No state'} · {summary.remaining} remaining
             </Txt>
@@ -78,14 +82,14 @@ export const WorkerSection = memo(function WorkerSection({
                 />
               ))}
               {shown.length > visible.length ? (
-                <Txt
-                  variant="label"
-                  color={colors.brand}
-                  style={{ paddingVertical: spacing.sm }}
-                  onPress={() => router.push(farmsHref as never)}
-                >
-                  View all {shown.length} in Farms →
-                </Txt>
+                <Pressable onPress={() => router.push(farmsHref as never)} style={{ paddingVertical: spacing.sm }}>
+                  <Row gap={6}>
+                    <Txt variant="label" color={colors.brand}>
+                      See all {shown.length} in Farms
+                    </Txt>
+                    <GlowIcon name="arrow-right" size={13} color={colors.brand} />
+                  </Row>
+                </Pressable>
               ) : null}
             </>
           )}

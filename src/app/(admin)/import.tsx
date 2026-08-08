@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Platform, ScrollView, View } from 'react-native';
 import { Header } from '@/components/Header';
-import { Badge, Button, Card, Divider, Field, Row, Screen, Spacer, Txt } from '@/components/ui';
+import { Badge, Button, Card, Divider, Field, IconLine, Row, Screen, Spacer, Txt } from '@/components/ui';
 import { repo } from '@/data';
 import { geocodeAddress } from '@/features/geo/geocode';
 import { parseFarmCsv } from '@/features/import/parseCsv';
@@ -58,7 +58,7 @@ export default function ImportFarms() {
         doParseText(await r.text());
       }
     } catch {
-      setResult('Could not read that file — paste the CSV text instead.');
+      setResult('That file could not be read. Paste the rows as text below instead.');
     }
   }
 
@@ -100,9 +100,9 @@ export default function ImportFarms() {
 
   return (
     <Screen scroll>
-      <Header title="Import farms" subtitle="CSV, or a table PDF on desktop" onBack={() => router.back()} />
+      <Header eyebrow="Farms" title="Import" subtitle="CSV, or a table PDF on desktop" onBack={() => router.back()} />
       <Row gap={spacing.sm} wrap>
-        <Button small variant="secondary" title={PDF_SUPPORTED ? 'Choose CSV or PDF' : 'Choose CSV file'} icon="📄" onPress={pickFile} />
+        <Button small variant="secondary" title={PDF_SUPPORTED ? 'Choose CSV or PDF' : 'Choose CSV file'} icon="file" onPress={pickFile} />
         <Button small variant="ghost" title="Load sample" onPress={() => doParseText(SAMPLE)} />
       </Row>
       {!PDF_SUPPORTED ? (
@@ -139,7 +139,9 @@ export default function ImportFarms() {
                         {r.glowFarmId} · {r.name}
                       </Txt>
                       {r.lat !== undefined && r.lng !== undefined ? (
-                        <Txt variant="caption" color={colors.successText}>📍 pin</Txt>
+                        <IconLine icon="pin" size={11} color={colors.successText}>
+                        mapped
+                      </IconLine>
                       ) : (
                         <Txt variant="caption" color={colors.warningText}>no pin</Txt>
                       )}
@@ -181,7 +183,7 @@ export default function ImportFarms() {
               <Button
                 title={`Find map pins for ${missingPins} address${missingPins === 1 ? '' : 'es'}`}
                 variant="secondary"
-                icon="🗺️"
+                icon="map"
                 onPress={backfillCoordinates}
                 loading={busy}
                 full
@@ -189,7 +191,7 @@ export default function ImportFarms() {
               <Spacer size={spacing.sm} />
             </>
           ) : null}
-          <Button title={`Import ${rows.length} farms`} icon="⬆️" onPress={doImport} loading={busy} disabled={rows.length === 0} full />
+          <Button title={`Import ${rows.length} farms`} icon="upload" onPress={doImport} loading={busy} disabled={rows.length === 0} full />
         </Card>
       ) : null}
 

@@ -1,19 +1,20 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { GlowGradient } from '@/components/brand/GlowGradient';
+import { GlowIcon, type IconName } from '@/components/brand/GlowIcon';
 import { GlowLockup, GlowSymbol } from '@/components/brand/GlowLogo';
-import { Button, Card, Divider, Field, Row, Screen, Spacer, Txt } from '@/components/ui';
+import { Button, Divider, Field, Row, Screen, Spacer, Txt } from '@/components/ui';
 import { SEED_USERS } from '@/data/local/seed';
 import { ROLE_LABEL } from '@/domain/permissions';
 import { useAuthStore } from '@/stores/authStore';
-import { colors, radius, spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
 
-const ROLE_EMOJI: Record<string, string> = {
-  admin: '🗂️',
-  photographer: '📷',
-  installer: '🔧',
-  reviewer: '✅',
+const ROLE_ICON: Record<string, IconName> = {
+  admin: 'folder',
+  photographer: 'camera',
+  installer: 'box',
+  reviewer: 'review',
 };
 
 export default function Login() {
@@ -72,35 +73,35 @@ export default function Login() {
         ) : null}
 
         <Divider />
-        <Txt variant="label">Demo accounts — tap to sign in</Txt>
+        <Txt variant="overline">Select an account</Txt>
         <Spacer size={spacing.sm} />
-        {SEED_USERS.map((u) => (
-          <Card key={u.id} onPress={() => doSignIn(u.email)} style={{ marginBottom: spacing.sm }}>
-            <Row gap={spacing.md}>
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: radius.pill,
-                  backgroundColor: colors.surfaceAlt,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Txt variant="subtitle">{ROLE_EMOJI[u.role]}</Txt>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Txt variant="subtitle">{u.name}</Txt>
-                <Txt variant="caption">
-                  {ROLE_LABEL[u.role]} · {u.email}
-                </Txt>
-              </View>
-              <Txt variant="body" color={colors.textFaint}>
-                →
-              </Txt>
-            </Row>
-          </Card>
-        ))}
+        {/* A list separated by hairlines, not a stack of boxed cards — the
+            site's way of setting a short index. */}
+        <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}>
+          {SEED_USERS.map((u) => (
+            <Pressable
+              key={u.id}
+              onPress={() => doSignIn(u.email)}
+              style={({ pressed }) => [
+                {
+                  paddingVertical: spacing.md,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: colors.border,
+                },
+                pressed ? { opacity: 0.6 } : null,
+              ]}
+            >
+              <Row gap={spacing.md}>
+                <GlowIcon name={ROLE_ICON[u.role]} size={20} color={colors.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Txt variant="subtitle">{u.name}</Txt>
+                  <Txt variant="overline">{ROLE_LABEL[u.role]}</Txt>
+                </View>
+                <GlowIcon name="arrow-right" size={15} color={colors.textFaint} />
+              </Row>
+            </Pressable>
+          ))}
+        </View>
       </View>
     </Screen>
   );

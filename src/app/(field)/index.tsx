@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { FarmCard } from '@/components/FarmCard';
+import { GlowIcon } from '@/components/brand/GlowIcon';
 import { GlowLockup } from '@/components/brand/GlowLogo';
 import { Header } from '@/components/Header';
 import { SignOutButton } from '@/components/SignOutButton';
@@ -49,13 +50,14 @@ export default function Today() {
         <GlowLockup height={22} />
       </View>
       <Header
-        title={`${primaryState} Assignment`}
+        eyebrow={primaryState}
+        title="Today's assignment"
         subtitle={user?.name}
         right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
       />
 
       {total === 0 ? (
-        <EmptyState icon="🎉" title="No farms assigned" subtitle="You're all caught up — check back later." />
+        <EmptyState title="No farms assigned yet" subtitle="Your day's work shows up here as soon as the office assigns it." />
       ) : (
         <>
           <StatGrid>
@@ -76,14 +78,15 @@ export default function Today() {
             </Txt>
             <Spacer size={spacing.sm} />
             <Row gap={spacing.sm}>
-              <Button small title="Start route" icon="🧭" onPress={() => router.push('/(field)/route')} />
-              <Button small variant="secondary" title="Map" icon="🗺️" onPress={() => router.push('/(field)/map')} />
+              <Button small title="Start route" icon="navigate" onPress={() => router.push('/(field)/route')} />
+              <Button small variant="secondary" title="Map" icon="map" onPress={() => router.push('/(field)/map')} />
             </Row>
           </Card>
 
           <Spacer />
           <Button
-            title={offline ? '✓ Available offline' : '⬇️ Download assignment for offline'}
+            title={offline ? 'Available offline' : 'Save this assignment for offline'}
+            icon={offline ? 'check' : 'download'}
             variant="secondary"
             full
             onPress={() => setOffline(true)}
@@ -102,9 +105,14 @@ export default function Today() {
             return f ? <FarmCard key={f.id} farm={f} audience="field" onPress={() => router.push(`/(field)/farm/${f.id}` as never)} /> : null;
           })}
           {route.stops.length > 8 ? (
-            <Txt variant="label" color={colors.brand} onPress={() => router.push('/(field)/farms')}>
-              View all {total} farms →
-            </Txt>
+            <Pressable onPress={() => router.push('/(field)/farms')} style={{ paddingVertical: spacing.sm }}>
+              <Row gap={6}>
+                <Txt variant="label" color={colors.brand}>
+                  See all {total} farms
+                </Txt>
+                <GlowIcon name="arrow-right" size={13} color={colors.brand} />
+              </Row>
+            </Pressable>
           ) : null}
         </>
       )}
@@ -124,12 +132,13 @@ function InstallerToday({ name, state, farms }: { name?: string; state: string; 
   return (
     <Screen scroll>
       <Header
-        title={`${state} Installations`}
+        eyebrow={state}
+        title="Today's installations"
         subtitle={name}
         right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
       />
       {total === 0 ? (
-        <EmptyState icon="🎉" title="No installations assigned" subtitle="You're all caught up — check back later." />
+        <EmptyState title="No installations assigned yet" subtitle="Farms appear here once they've reached PTO and been assigned to you." />
       ) : (
         <>
           <StatGrid>
@@ -142,7 +151,7 @@ function InstallerToday({ name, state, farms }: { name?: string; state: string; 
           <Txt variant="overline">To install</Txt>
           <Spacer size={spacing.sm} />
           {todo.length === 0 ? (
-            <EmptyState icon="✅" title="All installed" subtitle="Every assigned box is complete." />
+            <EmptyState title="Every box is in" subtitle="Nothing left on your list today." />
           ) : (
             todo.map((f) => (
               <FarmCard key={f.id} farm={f} phase="box_install" audience="field" onPress={() => router.push(`/(field)/install/${f.id}` as never)} />

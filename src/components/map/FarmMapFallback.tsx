@@ -1,5 +1,6 @@
 import { ScrollView, View } from 'react-native';
-import { Row, Txt } from '@/components/ui';
+import { GlowIcon } from '@/components/brand/GlowIcon';
+import { IconLine, Row, Txt } from '@/components/ui';
 import { colors, radius, spacing } from '@/theme';
 import type { FarmMapProps } from './FarmMap.types';
 
@@ -13,7 +14,9 @@ export function FarmMapFallback({ markers, selectedId, onSelect, height = 300 }:
   return (
     <View style={{ borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
       <View style={{ height: 84, backgroundColor: colors.brandFaint, alignItems: 'center', justifyContent: 'center' }}>
-        <Txt variant="subtitle">🗺️ {markers.length} farms plotted</Txt>
+        <IconLine icon="map" variant="subtitle" size={15} color={colors.text}>
+          {markers.length} farms plotted
+        </IconLine>
         <Txt variant="caption">Interactive map runs in the mobile app</Txt>
       </View>
       <ScrollView style={{ maxHeight: height }} contentContainerStyle={{ paddingBottom: spacing.sm }}>
@@ -38,7 +41,7 @@ export function FarmMapFallback({ markers, selectedId, onSelect, height = 300 }:
                 <Txt variant="body" numberOfLines={1} style={{ flex: 1 }}>
                   {i + 1}. {m.label}
                 </Txt>
-                <Txt variant="caption">
+                <Txt variant="mono" color={colors.textFaint}>
                   {m.lat.toFixed(3)}, {m.lng.toFixed(3)}
                 </Txt>
               </Row>

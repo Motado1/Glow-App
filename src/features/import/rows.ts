@@ -92,7 +92,7 @@ export function rowsFromRecords(
   if (!headerMap.name) missingHeaders.push('Name');
   if (!hasLocationColumn) missingHeaders.push('Address or Coordinates');
   if (missingHeaders.length > 0) {
-    errors.push({ row: 1, message: `Missing required column(s): ${missingHeaders.join(', ')}` });
+    errors.push({ row: 1, message: `Missing ${missingHeaders.length === 1 ? 'a required column' : 'required columns'}: ${missingHeaders.join(', ')}` });
     return { rows, errors, headers, totalRows: records.length };
   }
 

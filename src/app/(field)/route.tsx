@@ -41,7 +41,8 @@ export default function RouteScreen() {
   return (
     <Screen scroll>
       <Header
-        title="Optimized route"
+        eyebrow="Optimized order"
+        title="Your route"
         subtitle={`${route.stops.length} stops · ${formatMiles(route.totalMiles)} · ${formatDuration(route.totalMinutes)}`}
         onBack={() => router.back()}
       />
@@ -49,10 +50,10 @@ export default function RouteScreen() {
       <RouteStartPicker farms={active} start={start} />
 
       {route.stops.length === 0 ? (
-        <EmptyState icon="🧭" title="No stops" subtitle="Nothing to route right now." />
+        <EmptyState title="No stops to route" subtitle="Every farm on your list is either finished or missing coordinates." />
       ) : (
         <>
-          <Button title="Open full route in Google Maps" icon="🗺️" onPress={openFull} full />
+          <Button title="Open full route in Google Maps" icon="map" onPress={openFull} full />
           <Spacer />
           {route.stops.map((s) => {
             const f = farmById(s.farmId);
@@ -64,12 +65,12 @@ export default function RouteScreen() {
                   </Txt>
                   <Txt variant="caption">{f?.address}</Txt>
                   <Txt variant="caption">
-                    Leg: {formatMiles(s.legMiles)} · {formatDuration(s.legMinutes)}
+                    {formatMiles(s.legMiles)} · {formatDuration(s.legMinutes)} from the last stop
                   </Txt>
                 </View>
                 <Spacer size={spacing.sm} />
                 <Row gap={spacing.sm}>
-                  <Button small title="Navigate" icon="🧭" onPress={() => openStop(s.location, f?.name ?? '')} />
+                  <Button small title="Navigate" icon="navigate" onPress={() => openStop(s.location, f?.name ?? '')} />
                   <Button small variant="secondary" title="Open farm" onPress={() => router.push(`/(field)/farm/${s.farmId}` as never)} />
                 </Row>
               </Card>
@@ -79,7 +80,7 @@ export default function RouteScreen() {
             <>
               <Divider />
               <Txt variant="caption" color={colors.warningText}>
-                {route.skipped.length} farm(s) skipped (missing coordinates): {route.skipped.map((s) => s.glowFarmId).join(', ')}
+                {route.skipped.length === 1 ? '1 farm is' : `${route.skipped.length} farms are`} off the route — no coordinates on file: {route.skipped.map((s) => s.glowFarmId).join(', ')}
               </Txt>
             </>
           ) : null}

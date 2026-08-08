@@ -67,11 +67,7 @@ export default function Dashboard() {
       <View style={{ marginBottom: spacing.lg }}>
         <GlowLockup height={22} />
       </View>
-      <Header
-        title={`Hi, ${user?.name?.split(' ')[0] ?? 'there'}`}
-        subtitle="Field operations"
-        right={<SyncChip />}
-      />
+      <Header eyebrow="Overview" title="Field Operations" subtitle={user?.name} right={<SyncChip />} />
 
       <StatGrid>
         <Stat label="Need pre-install photos" value={stats.needsPre} tone="info" onPress={() => router.push('/(admin)/farms?preset=unassigned' as never)} />
@@ -101,8 +97,8 @@ export default function Dashboard() {
       <Spacer size={spacing.sm} />
       <SegmentedControl
         options={[
-          { value: 'photographer', label: '📷 Photographers' },
-          { value: 'installer', label: '🔧 Installers' },
+          { value: 'photographer', label: 'Photographers', icon: 'camera' },
+          { value: 'installer', label: 'Installers', icon: 'box' },
         ]}
         value={role}
         onChange={(r) => setRole(r as WorkRole)}
@@ -115,9 +111,8 @@ export default function Dashboard() {
 
       {summaries.length === 0 ? (
         <EmptyState
-          icon="🧭"
           title={`No ${role === 'installer' ? 'installers' : 'photographers'} assigned`}
-          subtitle="Assign farms from the Assign tab to see them here."
+          subtitle="Assign farms from the Assign tab and they'll show up here."
         />
       ) : (
         summaries.map((s, i) => (
@@ -146,7 +141,7 @@ export default function Dashboard() {
       })}
 
       <Divider />
-      <Txt variant="caption">Local demo data · {f.length} farms.</Txt>
+      <Txt variant="caption">{f.length} farms on record.</Txt>
     </Screen>
   );
 }

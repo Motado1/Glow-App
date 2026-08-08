@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { View } from 'react-native';
-import { Button, Card, Field, Row, Spacer, Txt } from '@/components/ui';
+import { Pressable, View } from 'react-native';
+import { Button, Card, Field, IconLine, Row, Spacer, Txt } from '@/components/ui';
 import type { Farm } from '@/domain/types';
 import { geocodeAddress } from '@/features/geo/geocode';
 import { getCurrentPoint } from '@/features/routing/currentLocation';
@@ -71,19 +71,19 @@ export function RouteStartPicker({ farms, start }: { farms: Farm[]; start: Resol
       </Txt>
       <Spacer size={spacing.sm} />
       <Row gap={spacing.sm} wrap>
-        <Button small title="Use my location" icon="📍" loading={locating} onPress={useMyLocation} />
+        <Button small title="Use my location" icon="pin" loading={locating} onPress={useMyLocation} />
         <Button
           small
           variant="secondary"
           title="Start at a farm"
-          icon="🌾"
+          icon="farms"
           onPress={() => setPanel(panel === 'farm' ? 'none' : 'farm')}
         />
         <Button
           small
           variant="secondary"
           title="Enter address"
-          icon="✏️"
+          icon="edit"
           onPress={() => setPanel(panel === 'manual' ? 'none' : 'manual')}
         />
       </Row>
@@ -100,19 +100,18 @@ export function RouteStartPicker({ farms, start }: { farms: Farm[]; start: Resol
             <Txt variant="caption">None of your farms have coordinates yet.</Txt>
           ) : (
             withCoords.slice(0, 12).map((f) => (
-              <Txt
+              <Pressable
                 key={f.id}
-                variant="body"
-                color={colors.brand}
-                numberOfLines={1}
                 style={{ paddingVertical: 6 }}
                 onPress={() => {
                   setMode({ kind: 'farm', farmId: f.id });
                   setPanel('none');
                 }}
               >
-                🌾 {f.name}
-              </Txt>
+                <IconLine icon="farms" variant="body" size={14} color={colors.brand} numberOfLines={1}>
+                  {f.name}
+                </IconLine>
+              </Pressable>
             ))
           )}
         </View>
@@ -128,7 +127,7 @@ export function RouteStartPicker({ farms, start }: { farms: Farm[]; start: Resol
             autoCapitalize="words"
           />
           <Spacer size={spacing.sm} />
-          <Button small title="Set as start" icon="✓" loading={busy} onPress={applyTyped} />
+          <Button small title="Set as start" icon="check" loading={busy} onPress={applyTyped} />
         </View>
       ) : null}
     </Card>

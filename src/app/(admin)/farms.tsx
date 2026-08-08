@@ -71,9 +71,10 @@ export default function AdminFarms() {
   return (
     <Screen>
       <Header
+        eyebrow="Records"
         title="Farms"
         subtitle={`${list.length} shown`}
-        right={<Button small title="Import" icon="⬆️" onPress={() => router.push('/(admin)/import')} />}
+        right={<Button small title="Import" icon="upload" onPress={() => router.push('/(admin)/import')} />}
       />
       <Field value={q} onChangeText={setQ} placeholder="Search name, address, or Glow ID" />
       <Spacer size={spacing.sm} />
@@ -90,7 +91,7 @@ export default function AdminFarms() {
             onPress={() => router.push(`/(admin)/farm/${item.id}` as never)}
           />
         )}
-        ListEmptyComponent={<EmptyState icon="🌾" title="No farms match" subtitle="Try a different filter or search." />}
+        ListEmptyComponent={<EmptyState title="No farms in this view" subtitle="Widen the filter, clear the search, or import a new list." />}
         contentContainerStyle={{ paddingBottom: spacing.xxxl }}
         showsVerticalScrollIndicator={false}
       />

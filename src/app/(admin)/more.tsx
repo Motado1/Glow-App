@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
+import { GlowLockup } from '@/components/brand/GlowLogo';
 import { Header } from '@/components/Header';
 import { Badge, Button, Card, Divider, Row, Screen, Spacer, Txt } from '@/components/ui';
 import { repo } from '@/data';
@@ -44,7 +45,7 @@ export default function More() {
 
   return (
     <Screen scroll>
-      <Header title="More" subtitle={user ? `${user.name} · ${ROLE_LABEL[user.role]}` : ''} />
+      <Header eyebrow={user ? ROLE_LABEL[user.role] : undefined} title={user?.name ?? 'Account'} />
 
       <Row justify="space-between">
         <Txt variant="overline">Notifications{unread ? ` (${unread})` : ''}</Txt>
@@ -94,13 +95,13 @@ export default function More() {
       )}
 
       <Divider />
-      <Button title="Reset demo data" variant="secondary" icon="♻️" onPress={resetDemo} full />
+      <Button title="Reset sample data" variant="secondary" icon="reset" onPress={resetDemo} full />
       <Spacer size={spacing.sm} />
       <Button title="Sign out" variant="ghost" onPress={doSignOut} full />
       <Spacer />
-      <Txt variant="caption" color={colors.textFaint}>
-        Glow Field Operations · Pre-install MVP · local demo backend
-      </Txt>
+      <Row gap={spacing.sm} justify="center" style={{ opacity: 0.5 }}>
+        <GlowLockup height={14} color={colors.textFaint} />
+      </Row>
     </Screen>
   );
 }

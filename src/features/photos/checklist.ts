@@ -40,6 +40,21 @@ export function checklistFor(phase: PhotoPhase): ChecklistItem[] {
     : DEFAULT_POST_INSTALL_CHECKLIST;
 }
 
+/**
+ * The human name for a checklist key. Photos are stored against the key
+ * (`RoofOrPanelLocation`), which is a filename component, not something to
+ * show anyone — this is the single place that translates it. Unknown keys fall
+ * back to their words rather than rendering raw camel case.
+ */
+export function checklistLabel(key: string): string {
+  const item =
+    DEFAULT_PRE_INSTALL_CHECKLIST.find((i) => i.key === key) ??
+    DEFAULT_POST_INSTALL_CHECKLIST.find((i) => i.key === key);
+  if (item) return item.label;
+  const words = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1).toLowerCase();
+}
+
 export interface ChecklistProgress {
   item: ChecklistItem;
   photos: Photo[];

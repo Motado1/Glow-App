@@ -4,9 +4,9 @@ import { View } from 'react-native';
 import { Header } from '@/components/Header';
 import { PhotoThumb } from '@/components/PhotoThumb';
 import { boxInstallStatus, overallStatus, preInstallStatus } from '@/components/statusHelpers';
-import { Button, Card, Divider, Row, Screen, SegmentedControl, Spacer, StatusPill, Txt } from '@/components/ui';
+import { Button, Card, Divider, Loading, Row, Screen, SegmentedControl, Spacer, StatusPill, Txt } from '@/components/ui';
 import { repo } from '@/data';
-import type { ActivityEvent, BoxInstallation, Photo, Submission } from '@/domain/types';
+import { CONNECTIVITY_LABEL, type ActivityEvent, type BoxInstallation, type Photo, type Submission } from '@/domain/types';
 import { formatDate, relativeTime } from '@/lib/date';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
@@ -39,7 +39,7 @@ export default function AdminFarmDetail() {
     return (
       <Screen>
         <Header title="Farm" onBack={() => router.back()} />
-        <Txt>Loading…</Txt>
+        <Loading />
       </Screen>
     );
   }
@@ -68,7 +68,7 @@ export default function AdminFarmDetail() {
 
   return (
     <Screen scroll>
-      <Header title={farm.name} subtitle={farm.glowFarmId} onBack={() => router.back()} />
+      <Header eyebrow={farm.glowFarmId} title={farm.name} subtitle={farm.address} onBack={() => router.back()} />
       <Row gap={spacing.sm} wrap>
         <StatusPill label={ov.label} tone={ov.tone} />
         <StatusPill label={pre.label} tone={pre.tone} />
@@ -77,13 +77,13 @@ export default function AdminFarmDetail() {
       <Spacer />
       {canMarkPto ? (
         <>
-          <Button title="Mark PTO reached (→ box install)" icon="⚡" onPress={markPto} loading={ptoBusy} full />
+          <Button title="Confirm PTO reached" icon="bolt" onPress={markPto} loading={ptoBusy} full />
           <Spacer />
         </>
       ) : null}
       {pendingSub ? (
         <>
-          <Button title="Open in review" icon="✅" onPress={() => router.push(`/(admin)/submission/${pendingSub.id}` as never)} full />
+          <Button title="Open in review" icon="review" onPress={() => router.push(`/(admin)/submission/${pendingSub.id}` as never)} full />
           <Spacer />
         </>
       ) : null}
@@ -104,7 +104,7 @@ export default function AdminFarmDetail() {
         <Info label="Obstructions (from field)" value={farm.obstructionNotes} />
         <Info label="Contact" value={farm.contact ? `${farm.contact.name ?? ''} ${farm.contact.phone ?? ''}`.trim() : undefined} />
         <Info label="Notes" value={farm.notes} />
-        <Info label="Drive folder" value={farm.driveFolderUrl ?? 'Created on approval (later phase)'} />
+        <Info label="Drive folder" value={farm.driveFolderUrl ?? 'Created once photos are approved'} />
       </Card>
 
       {boxInstall ? (
@@ -122,13 +122,7 @@ export default function AdminFarmDetail() {
             <Info label="Programming" value={boxInstall.programmingCompleted ? 'Completed' : 'Pending'} />
             <Info
               label="Connectivity"
-              value={
-                boxInstall.connectivityTest.status === 'passed'
-                  ? 'Passed ✓'
-                  : boxInstall.connectivityTest.status === 'failed'
-                    ? 'Failed ✗'
-                    : 'Not tested'
-              }
+              value={CONNECTIVITY_LABEL[boxInstall.connectivityTest.status]}
             />
             <Info label="Readings" value={boxInstall.connectivityTest.readings} />
             <Info label="Deficiencies" value={boxInstall.problems} />
@@ -141,7 +135,7 @@ export default function AdminFarmDetail() {
       <Button
         title={assignee ? `Reassign · currently ${assignee.name.split(' ')[0]}` : 'Assign photographer'}
         variant="secondary"
-        icon="🧭"
+        icon="assign"
         onPress={() => setAssigning((a) => !a)}
         full
       />

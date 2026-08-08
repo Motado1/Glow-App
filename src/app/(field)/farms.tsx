@@ -49,6 +49,7 @@ export default function FieldFarms() {
   return (
     <Screen>
       <Header
+        eyebrow="Assignment"
         title={isInstaller ? 'My installations' : 'My farms'}
         subtitle={`${list.length} shown`}
         right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
@@ -67,7 +68,7 @@ export default function FieldFarms() {
             onPress={() => router.push((isInstaller ? `/(field)/install/${item.id}` : `/(field)/farm/${item.id}`) as never)}
           />
         )}
-        ListEmptyComponent={<EmptyState icon="🌾" title="Nothing here" subtitle="No farms in this filter." />}
+        ListEmptyComponent={<EmptyState title="No farms in this view" subtitle="Switch the filter above to see the rest of your assignment." />}
         contentContainerStyle={{ paddingBottom: spacing.xxxl }}
         showsVerticalScrollIndicator={false}
       />

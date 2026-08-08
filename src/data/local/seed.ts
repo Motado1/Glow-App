@@ -35,11 +35,11 @@ export interface SeedData {
 }
 
 export const SEED_USERS: User[] = [
-  { id: 'u-jared', name: 'Jared (Admin)', email: 'jared@glow.example', role: 'admin', active: true },
-  { id: 'u-dan', name: 'Dan Whitfield', email: 'dan@glow.example', role: 'photographer', phone: '+1 720 555 0142', homeBase: 'Denver, CO', active: true },
-  { id: 'u-maria', name: 'Maria Ortiz', email: 'maria@glow.example', role: 'photographer', phone: '+1 316 555 0188', homeBase: 'Wichita, KS', active: true },
-  { id: 'u-sam', name: 'Sam Reeves', email: 'sam@glow.example', role: 'installer', phone: '+1 720 555 0170', homeBase: 'Denver, CO', active: true },
-  { id: 'u-priya', name: 'Priya Nair', email: 'priya@glow.example', role: 'reviewer', active: true },
+  { id: 'u-jared', name: 'Jared Morgan', email: 'jared@glow.org', role: 'admin', active: true },
+  { id: 'u-dan', name: 'Dan Whitfield', email: 'dan@glow.org', role: 'photographer', phone: '+1 720 555 0142', homeBase: 'Denver, CO', active: true },
+  { id: 'u-maria', name: 'Maria Ortiz', email: 'maria@glow.org', role: 'photographer', phone: '+1 316 555 0188', homeBase: 'Wichita, KS', active: true },
+  { id: 'u-sam', name: 'Sam Reeves', email: 'sam@glow.org', role: 'installer', phone: '+1 720 555 0170', homeBase: 'Denver, CO', active: true },
+  { id: 'u-priya', name: 'Priya Nair', email: 'priya@glow.org', role: 'reviewer', active: true },
 ];
 
 function mulberry32(seed: number): () => number {
@@ -85,6 +85,50 @@ const STATES: StateCfg[] = [
 ];
 
 const STREETS = ['County Rd 14', 'Prairie View Rd', 'Ranch House Ln', 'Sunflower Ave', 'Meadowlark Dr', 'Old Mill Rd', 'Harvest Way', 'Cottonwood Ln', 'Ridgeline Rd', 'Homestead Dr'];
+
+/**
+ * Farm names are drawn from a fixed list rather than combined from adjective x
+ * noun pools: 10 x 8 combinations across 55 farms produced duplicate names and
+ * phrases no one would use ("Acres Farm"). Each row here is used once.
+ */
+const FARM_NAMES = [
+  'Circle K Ranch', 'Twin Buttes', 'Halvorsen Dairy', 'Clearwater Orchards', 'Boot Hill Cattle Co.',
+  'Sandhill Grain', 'Rocky Fork Ranch', 'Elkhorn Acres', 'Sunrise Dairy', 'Prairie Rose Farms',
+  'McAllister Feedlot', 'Bitter Creek Ranch', 'Larkspur Hollow', 'Nine Mile Farm', 'Wheatland Co-op',
+  'Kessler Brothers', 'Antelope Flats', 'Old Baldy Ranch', 'Cottonwood Bend', 'Redtail Farms',
+  'Vasquez Family Farm', 'Bear Creek Cattle', 'Solstice Orchards', 'Hollenbeck Grain', 'Dry Gulch Ranch',
+  'Meadowlark Dairy', 'Two Rivers Farm', 'Ostrander Acres', 'Painted Sky Ranch', 'Fairview Hereford',
+  'Quandary Farms', 'Whitlock & Sons', 'Bluestem Prairie', 'Iron Springs Ranch', 'Delaney Homestead',
+  'Cimarron Cattle Co.', 'Northgate Grain', 'Aspen Grove Farm', 'Hartman Feed & Seed', 'Silver Plume Ranch',
+  'Buffalo Wallow Farm', 'Osage Ridge', 'Kettleman Dairy', 'Wagon Wheel Ranch', 'Little Blue Farms',
+  'Renfro Cattle Co.', 'Chalk Bluff Ranch', 'Sagebrush Acres', 'Duffy Grain', 'Mesa Verde Orchards',
+  'Turkey Creek Farm', 'Lindquist Dairy', 'Wind River Ranch', 'Copper Basin Farms', 'Foxglove Hollow',
+  'Standing Rock Ranch', 'Bergstrom Grain', 'High Lonesome Farm', 'Ashcroft Acres', 'Marisol Vineyards',
+];
+
+/** Owner names, so a contact card doesn't read "Denver Owner". */
+const CONTACT_NAMES = [
+  'Ray Hollenbeck', 'Dana Whitmore', 'Luis Vasquez', 'Peg Ostrander', 'Curtis Duffy',
+  'Marlene Kessler', 'Tom Renfro', 'Alice Standing Bear', 'Gus Halvorsen', 'Bev Lindquist',
+  'Wes McAllister', 'Nadia Ashcroft', 'Frank Delaney', 'Rosa Marisol', 'Hank Bergstrom',
+];
+
+/**
+ * Access notes vary per farm — every record carrying the same gate code was
+ * the tell that made the whole dataset read as generated.
+ */
+const ACCESS_NOTES = [
+  'Gate code 4412. Dog on the property — call ahead.',
+  'Second driveway past the grain bins; the first one is the neighbour\'s.',
+  'Cattle guard at the entrance. Close the gate behind you.',
+  'Park by the shop, not the house. Owner works days.',
+  'Long gravel drive — high clearance helps after rain.',
+  'Call on arrival; the gate is chained but not locked.',
+  'Enter from the county road, not the highway frontage.',
+  'Panel is on the north side of the barn.',
+  'Gate code 0917. Watch for equipment in the lane.',
+  'No one on site weekdays — access is open, just sign the sheet in the shed.',
+];
 
 interface Bucket {
   pre: PreInstallStatus;
@@ -133,6 +177,7 @@ export function buildSeed(): SeedData {
   const boxInstallations: BoxInstallation[] = [];
   const now = new Date().toISOString();
   let glowSeq = 10001;
+  let nameCursor = 0;
   let reviewQueueSeeded = 0;
 
   for (const st of STATES) {
@@ -159,7 +204,7 @@ export function buildSeed(): SeedData {
         id,
         glowFarmId,
         hubRecordId: `HUB-${glowFarmId.slice(3)}`,
-        name: `${['Circle', 'Twin', 'High', 'Clear', 'Golden', 'Silver', 'Rocky', 'Green', 'Sunrise', 'Prairie'][Math.floor(rng() * 10)]} ${['Creek', 'Ridge', 'Valley', 'Acres', 'Fields', 'Meadows', 'Hollow', 'Springs'][Math.floor(rng() * 8)]} Farm`,
+        name: FARM_NAMES[nameCursor++ % FARM_NAMES.length],
         address: `${houseNo} ${street}, ${city}, ${st.code}`,
         location: hasLoc ? { lat, lng } : undefined,
         state: st.name,
@@ -171,10 +216,13 @@ export function buildSeed(): SeedData {
         ptoStatus: 'not_reached',
         scheduledDate: assigned ? iso(scheduledOffset).slice(0, 10) : undefined,
         completionDate: done ? now : undefined,
-        accessInstructions: rng() > 0.6 ? 'Gate code 4412. Dog on property — call ahead.' : undefined,
+        accessInstructions: rng() > 0.6 ? ACCESS_NOTES[Math.floor(rng() * ACCESS_NOTES.length)] : undefined,
         contact:
           assigned && rng() > 0.5
-            ? { name: `${city} Owner`, phone: '+1 555 010 ' + String(1000 + Math.floor(rng() * 8999)) }
+            ? {
+                name: CONTACT_NAMES[Math.floor(rng() * CONTACT_NAMES.length)],
+                phone: '+1 555 010 ' + String(1000 + Math.floor(rng() * 8999)),
+              }
             : undefined,
         notes: pre === 'address_problem' ? 'Address pin lands in an empty field — verify with customer.' : undefined,
         createdAt: now,

@@ -19,14 +19,14 @@ npx expo start      # press w for web, i for iOS, a for Android
 npm run web
 ```
 
-No accounts or API keys are required — the app ships with a **local demo backend**
-(seeded data on the device). On the login screen, tap any demo account to sign in.
+No accounts or API keys are required — the app ships with a **local backend** (seeded data on the
+device). On the login screen, pick any account to sign in.
 
-### Demo accounts
+### Sample accounts
 
 | Person | Role | Sees |
 | --- | --- | --- |
-| **Jared** | Administrator | Everything: dashboard, all farms, assignment, review, import |
+| **Jared Morgan** | Administrator | Everything: dashboard, all farms, assignment, review, import |
 | **Dan Whitfield** | Field Photographer | Only farms assigned to him (Colorado) |
 | **Maria Ortiz** | Field Photographer | Only farms assigned to her (Kansas) |
 | **Sam Reeves** | Box Installer | Only farms assigned to him for box installation |
@@ -50,14 +50,14 @@ No accounts or API keys are required — the app ships with a **local demo backe
    **request retakes** with a reason. The farm status + activity history update live, and
    Dan gets an alert. Rejected items show up back on Dan's checklist as retakes.
 
-Use **More → Reset demo data** to start over.
+Use **More → Reset sample data** to start over.
 
 ## Box-installation demo (the second half of the lifecycle)
 
 1. **As Jared**, open a farm whose pre-install photos are **Approved** and tap
    **Mark PTO reached** — it moves into the box-installation queue. (Several farms are
    pre-seeded past this point already.)
-2. **Assign → 🔧 Box install** → pick **Sam** and assign the ready farms.
+2. **Assign → Box install** → pick **Sam** and assign the ready farms.
 3. **Sign in as Sam** → **Today** shows his installation queue. Open a farm to record the
    **box serial** (tap **Scan** to simulate), electrical + network details, run the
    **connectivity test** (pass/fail), and shoot the **post-install checklist**, then **Submit**.
@@ -85,10 +85,23 @@ vectors are taken verbatim from the official brand kit — nothing is approximat
 - **Glow Grid** (`src/components/brand/GlowGrid.tsx`): the brand's lattice graphic device, layered
   at low opacity over the gradient heroes as the site layers it. It's a regular 12×12 lattice, so
   it's generated parametrically rather than embedding ~4.5 KB of equivalent path data.
-- **Type** — Inter (400/500/600/700) stands in for the brand grotesk: the closest free match,
-  identical across iOS/Android/web. Imported from per-weight subpaths, not the package root,
-  which would bundle all 18 faces (~5.9 MB) instead of the 4 in use (1.3 MB). Swap
-  `fontFamily.sans` in `src/theme/index.ts` if the licensed face becomes available.
+- **Icons** (`src/components/brand/GlowIcon.tsx`): a drawn set of 43, not a library and not emoji.
+  Each sits on a 24×24 grid, stroked at 1.75 with square caps and mitre joins, and contains **no
+  curves** — the Glow symbol has none, so neither do these. Its eight rhombus petals are the
+  recurring device: the camera's lens, the clock face, the pin head, the key bow, the settings
+  handles, the sun in `today`, the field in `farms`. Silhouettes stay conventional so a camera
+  still reads as a camera at arm's length in sunlight. `IconName` is a literal union, so a wrong
+  name is a compile error rather than a missing glyph.
+- **Type** — the brand faces are **Söhne** (Klim) for sans and **Duplicate Slab** (e-Types) for
+  the secondary serif. Both are commercially licensed and therefore not bundled. **Archivo**
+  (400/500/600/700) stands in: Söhne is drawn on Akzidenz-Grotesk bones and so is Archivo, so it
+  carries the same squared terminals and tight apertures. (Inter — the obvious free grotesque, and
+  the default on every generated app — is a screen-first Helvetica descendant and reads generic
+  here.) Imported from per-weight subpaths, not the package root, which would bundle all 18 faces
+  (~5.9 MB) instead of the 4 in use (~480 KB).
+  **To use the real Söhne:** drop the files in `assets/fonts/`, register them in the `useFonts`
+  call in `src/app/_layout.tsx`, and point the `sans*` tokens in `src/theme/index.ts` at them.
+  Duplicate Slab is deliberately unused — glow.org sets its display copy in the sans.
 - **Site language carried into the app** (from glow.org): uppercase letterspaced micro-labels
   (`Txt variant="overline"`) for section markers, **monospace for data readouts** — Glow farm
   IDs, serials, coordinates — the way the site sets its hex values, and surfaces separated by
@@ -143,7 +156,7 @@ __tests__/             # pure-logic unit tests
 
 ```bash
 npx tsc --noEmit            # types
-npx jest                    # 30 unit tests (route optimizer, naming, status, outbox, CSV, RBAC, checklist)
+npx jest                    # 59 unit tests (route optimizer, naming, status, outbox, CSV, RBAC, checklist)
 npx expo export --platform web   # proves the universal build (catches web-incompatible imports)
 ```
 

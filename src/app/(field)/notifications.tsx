@@ -28,6 +28,7 @@ export default function Alerts() {
   return (
     <Screen>
       <Header
+        eyebrow="Inbox"
         title="Alerts"
         subtitle={`${items.filter((n) => !n.read).length} unread`}
         right={
@@ -55,7 +56,7 @@ export default function Alerts() {
             </Txt>
           </Card>
         )}
-        ListEmptyComponent={<EmptyState icon="🔔" title="No alerts" subtitle="You're all caught up." />}
+        ListEmptyComponent={<EmptyState title="No alerts" subtitle="Retake requests and new assignments show up here." />}
         contentContainerStyle={{ paddingBottom: spacing.xxxl }}
       />
     </Screen>

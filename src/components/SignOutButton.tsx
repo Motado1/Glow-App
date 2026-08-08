@@ -9,5 +9,5 @@ export function SignOutButton() {
     await signOut();
     router.replace('/');
   }
-  return <Button small variant="ghost" title="Sign out" icon="⎋" onPress={onPress} />;
+  return <Button small variant="ghost" title="Sign out" icon="signout" onPress={onPress} />;
 }

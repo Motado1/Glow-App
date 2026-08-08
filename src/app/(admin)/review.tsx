@@ -15,7 +15,7 @@ export default function Review() {
 
   return (
     <Screen>
-      <Header title="Review queue" subtitle={`${pending.length} awaiting review`} />
+      <Header eyebrow="Queue" title="Review" subtitle={`${pending.length} awaiting review`} />
       <FlatList
         style={{ flex: 1 }}
         data={pending}
@@ -31,7 +31,7 @@ export default function Review() {
             </Txt>
           </Card>
         )}
-        ListEmptyComponent={<EmptyState icon="✅" title="Review queue is clear" subtitle="No submissions are waiting." />}
+        ListEmptyComponent={<EmptyState title="Nothing awaiting review" subtitle="Submissions land here the moment a photographer sends them in." />}
         contentContainerStyle={{ paddingBottom: spacing.xxxl }}
       />
     </Screen>

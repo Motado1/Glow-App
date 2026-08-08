@@ -4,7 +4,7 @@ import { Linking, Platform, View } from 'react-native';
 import { Header } from '@/components/Header';
 import { PhotoThumb } from '@/components/PhotoThumb';
 import { fieldPreInstallStatus, SYNC_LABEL, syncTone } from '@/components/statusHelpers';
-import { Badge, Button, Card, Divider, Field, Row, Screen, Spacer, StatusPill, Txt } from '@/components/ui';
+import { Badge, Button, Card, ChecklistMark, Divider, Field, IconLine, Loading, Row, Screen, Spacer, StatusPill, Txt } from '@/components/ui';
 import { files, repo } from '@/data';
 import { REJECT_REASON_LABEL, type ChecklistItem, type Photo } from '@/domain/types';
 import { canContactFarm } from '@/domain/permissions';
@@ -49,7 +49,7 @@ export default function FieldFarmDetail() {
     return (
       <Screen>
         <Header title="Farm" onBack={() => router.back()} />
-        <Txt>Loading…</Txt>
+        <Loading />
       </Screen>
     );
   }
@@ -106,7 +106,7 @@ export default function FieldFarmDetail() {
       }
       for (const pk of picks) await addOne(item, pk, mode === 'camera' ? 'camera' : 'import');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not add photo');
+      setError(e instanceof Error ? e.message : 'That photo could not be saved. Try again.');
     } finally {
       setBusyItem(null);
     }
@@ -118,7 +118,7 @@ export default function FieldFarmDetail() {
       return;
     }
     const url = Platform.OS === 'ios' ? buildAppleMapsDestUrl(farm!.location, farm!.name) : buildGoogleMapsDestUrl(farm!.location);
-    Linking.openURL(url).catch(() => setError('Could not open maps.'));
+    Linking.openURL(url).catch(() => setError('No maps app responded on this device.'));
   }
 
   async function submit() {
@@ -134,7 +134,7 @@ export default function FieldFarmDetail() {
 
   return (
     <Screen scroll>
-      <Header title={farm.name} subtitle={farm.glowFarmId} onBack={() => router.back()} />
+      <Header eyebrow={farm.glowFarmId} title={farm.name} onBack={() => router.back()} />
       <Row justify="space-between" wrap gap={spacing.sm}>
         <StatusPill label={st.label} tone={st.tone} />
         {!ready ? <Badge label={`${missing.length} required left`} tone="warning" /> : <Badge label="Ready to submit" tone="success" />}
@@ -144,20 +144,20 @@ export default function FieldFarmDetail() {
       <Card>
         <Txt variant="body">{farm.address}</Txt>
         {farm.accessInstructions ? (
-          <Txt variant="caption" style={{ marginTop: 4 }}>
-            🔑 {farm.accessInstructions}
-          </Txt>
+          <View style={{ marginTop: 6 }}>
+            <IconLine icon="key">{farm.accessInstructions}</IconLine>
+          </View>
         ) : null}
         <Spacer size={spacing.sm} />
         <Row gap={spacing.sm} wrap>
-          <Button small title="Navigate" icon="🧭" onPress={navigate} />
+          <Button small title="Navigate" icon="navigate" onPress={navigate} />
           {canContact && farm.contact?.phone ? (
             <>
-              <Button small variant="secondary" title="Call" icon="📞" onPress={() => Linking.openURL(`tel:${farm.contact!.phone}`)} />
-              <Button small variant="secondary" title="Text" icon="💬" onPress={() => Linking.openURL(`sms:${farm.contact!.phone}`)} />
+              <Button small variant="secondary" title="Call" icon="phone" onPress={() => Linking.openURL(`tel:${farm.contact!.phone}`)} />
+              <Button small variant="secondary" title="Text" icon="message" onPress={() => Linking.openURL(`sms:${farm.contact!.phone}`)} />
             </>
           ) : null}
-          <Button small variant="ghost" title="Report problem" icon="⚠️" onPress={() => router.push(`/(field)/problem?farmId=${farm.id}` as never)} />
+          <Button small variant="ghost" title="Flag an issue" icon="alert" onPress={() => router.push(`/(field)/problem?farmId=${farm.id}` as never)} />
         </Row>
       </Card>
 
@@ -165,7 +165,9 @@ export default function FieldFarmDetail() {
         <>
           <Spacer size={spacing.sm} />
           <Card>
-            <Txt variant="subtitle">⏸ Reported to the office</Txt>
+            <IconLine icon="hold" variant="subtitle" size={15} color={colors.text}>
+              Reported to the office
+            </IconLine>
             <Txt variant="caption">
               We've passed this on. You'll be notified if anything changes — no need to report it again.
             </Txt>
@@ -177,9 +179,9 @@ export default function FieldFarmDetail() {
         <>
           <Spacer size={spacing.sm} />
           <Card style={{ borderColor: colors.dangerText, borderWidth: 1 }}>
-            <Txt variant="subtitle" color={colors.dangerText}>
-              ↻ Retakes requested
-            </Txt>
+            <IconLine icon="retake" variant="subtitle" size={15} color={colors.dangerText}>
+              Retakes requested
+            </IconLine>
             {list
               .filter((p) => p.reviewState === 'rejected')
               .slice(0, 4)
@@ -213,7 +215,7 @@ export default function FieldFarmDetail() {
               </Row>
               {pr.item.description ? <Txt variant="caption">{pr.item.description}</Txt> : null}
             </View>
-            <Txt variant="title">{pr.satisfied ? '✅' : pr.needsRetake ? '↻' : pr.item.required ? '⬜️' : '➖'}</Txt>
+            <ChecklistMark satisfied={pr.satisfied} needsRetake={pr.needsRetake} required={pr.item.required} />
           </Row>
 
           {pr.photos.length > 0 ? (
@@ -234,8 +236,8 @@ export default function FieldFarmDetail() {
 
           <Spacer size={spacing.sm} />
           <Row gap={spacing.sm}>
-            <Button small title="Camera" icon="📷" loading={busyItem === pr.item.id + 'camera'} onPress={() => onAdd(pr.item, 'camera')} />
-            <Button small variant="secondary" title="Import" icon="🖼️" loading={busyItem === pr.item.id + 'import'} onPress={() => onAdd(pr.item, 'import')} />
+            <Button small title="Camera" icon="camera" loading={busyItem === pr.item.id + 'camera'} onPress={() => onAdd(pr.item, 'camera')} />
+            <Button small variant="secondary" title="Import" icon="image" loading={busyItem === pr.item.id + 'import'} onPress={() => onAdd(pr.item, 'import')} />
           </Row>
         </Card>
       ))}
@@ -252,7 +254,7 @@ export default function FieldFarmDetail() {
           multiline
         />
         <Spacer size={spacing.sm} />
-        <Button small variant="secondary" title="Save note" icon="💾" loading={savingNote} onPress={saveObstructions} />
+        <Button small variant="secondary" title="Save note" icon="save" loading={savingNote} onPress={saveObstructions} />
       </Card>
 
       <Spacer />
@@ -262,7 +264,7 @@ export default function FieldFarmDetail() {
         </Txt>
       ) : null}
       <Spacer size={spacing.sm} />
-      <Button title="Submit for review" icon="📤" onPress={submit} loading={submitting} disabled={!ready} full />
+      <Button title="Submit for review" icon="upload" onPress={submit} loading={submitting} disabled={!ready} full />
       <Spacer size={spacing.xxxl} />
     </Screen>
   );

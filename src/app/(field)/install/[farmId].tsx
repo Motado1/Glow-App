@@ -4,7 +4,8 @@ import { Pressable, View } from 'react-native';
 import { Header } from '@/components/Header';
 import { PhotoThumb } from '@/components/PhotoThumb';
 import { boxInstallStatus, SYNC_LABEL, syncTone } from '@/components/statusHelpers';
-import { Badge, Button, Card, Divider, Field, Row, Screen, SegmentedControl, Spacer, StatusPill, Txt } from '@/components/ui';
+import { GlowIcon } from '@/components/brand/GlowIcon';
+import { Badge, Button, Card, ChecklistMark, Divider, Field, IconLine, Loading, Row, Screen, SegmentedControl, Spacer, StatusPill, Txt } from '@/components/ui';
 import { files, repo } from '@/data';
 import type { BoxInstallationInput, ChecklistItem, ConnectivityStatus, NetworkType, Photo, Submission } from '@/domain/types';
 import { captureFromCamera, pickFromLibrary, type Picked } from '@/features/photos/capture';
@@ -48,7 +49,7 @@ function Toggle({ label, value, onToggle }: { label: string; value: boolean; onT
   return (
     <Pressable onPress={onToggle}>
       <Row gap={spacing.sm}>
-        <Txt variant="title">{value ? '☑️' : '⬜️'}</Txt>
+        <GlowIcon name={value ? 'checkbox-on' : 'checkbox-off'} size={22} color={value ? colors.brand : colors.borderStrong} />
         <Txt variant="body">{label}</Txt>
       </Row>
     </Pressable>
@@ -115,7 +116,7 @@ export default function InstallScreen() {
     return (
       <Screen>
         <Header title="Installation" onBack={() => router.back()} />
-        <Txt>Loading…</Txt>
+        <Loading />
       </Screen>
     );
   }
@@ -191,7 +192,7 @@ export default function InstallScreen() {
       }
       for (const pk of picks) await addOne(item, pk, mode === 'camera' ? 'camera' : 'import');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not add photo');
+      setError(e instanceof Error ? e.message : 'That photo could not be saved. Try again.');
     } finally {
       setBusyItem(null);
     }
@@ -209,17 +210,19 @@ export default function InstallScreen() {
 
   return (
     <Screen scroll>
-      <Header title={farm.name} subtitle={`${farm.glowFarmId} · Box installation`} onBack={() => router.back()} />
+      <Header eyebrow={`${farm.glowFarmId} · Box installation`} title={farm.name} onBack={() => router.back()} />
       <Row justify="space-between" wrap gap={spacing.sm}>
         <StatusPill label={st.label} tone={st.tone} />
-        {farm.equipmentDetails ? <Txt variant="caption">⚙️ {farm.equipmentDetails}</Txt> : null}
+        {farm.equipmentDetails ? <IconLine icon="settings">{farm.equipmentDetails}</IconLine> : null}
       </Row>
 
       {farm.boxInstallStatus === 'correction_required' && latestSub?.reviewNote ? (
         <>
           <Spacer size={spacing.sm} />
           <Card style={{ borderColor: colors.dangerText, borderWidth: 1 }}>
-            <Txt variant="subtitle" color={colors.dangerText}>⚠️ Correction requested</Txt>
+            <IconLine icon="alert" variant="subtitle" size={15} color={colors.dangerText}>
+                Correction requested
+              </IconLine>
             <Txt variant="caption">{latestSub.reviewNote}</Txt>
           </Card>
         </>
@@ -236,7 +239,7 @@ export default function InstallScreen() {
           <View style={{ flex: 1 }}>
             <Field label="Box serial number *" value={form.boxSerial} onChangeText={(v) => set('boxSerial', v)} placeholder="GLOW-BOX-…" autoCapitalize="none" />
           </View>
-          <Button small variant="secondary" title="Scan" icon="📷" onPress={() => set('boxSerial', `GLOW-BOX-${farm.glowFarmId.slice(3)}`)} />
+          <Button small variant="secondary" title="Scan" icon="scan" onPress={() => set('boxSerial', `GLOW-BOX-${farm.glowFarmId.slice(3)}`)} />
         </Row>
         <Spacer size={spacing.sm} />
         <Field label="Box version" value={form.boxVersion} onChangeText={(v) => set('boxVersion', v)} placeholder="v3.2" />
@@ -285,7 +288,11 @@ export default function InstallScreen() {
       <Spacer size={spacing.sm} />
       <Card>
         <SegmentedControl
-          options={[{ value: 'pending', label: 'Not tested' }, { value: 'passed', label: '✓ Passed' }, { value: 'failed', label: '✗ Failed' }]}
+          options={[
+                { value: 'pending', label: 'Not tested' },
+                { value: 'passed', label: 'Passed', icon: 'check' },
+                { value: 'failed', label: 'Failed', icon: 'cross' },
+              ]}
           value={form.connectivityStatus}
           onChange={(v) => set('connectivityStatus', v as ConnectivityStatus)}
         />
@@ -301,7 +308,7 @@ export default function InstallScreen() {
       <Spacer size={spacing.sm} />
       <Field label="Notes for the office" value={form.problems} onChangeText={(v) => set('problems', v)} placeholder="Anything needing follow-up…" multiline />
       <Spacer size={spacing.sm} />
-      <Button title="Save installation details" variant="secondary" icon="💾" onPress={saveRecord} loading={savingRecord} full />
+      <Button title="Save installation details" variant="secondary" icon="save" onPress={saveRecord} loading={savingRecord} full />
 
       {/* Post-install photo checklist */}
       <Divider />
@@ -319,7 +326,7 @@ export default function InstallScreen() {
                 {pr.item.required ? <Badge label="required" tone="neutral" /> : <Badge label="optional" tone="neutral" />}
               </Row>
             </View>
-            <Txt variant="title">{pr.satisfied ? '✅' : pr.item.required ? '⬜️' : '➖'}</Txt>
+            <ChecklistMark satisfied={pr.satisfied} required={pr.item.required} />
           </Row>
           {pr.photos.length > 0 ? (
             <>
@@ -338,8 +345,8 @@ export default function InstallScreen() {
           ) : null}
           <Spacer size={spacing.sm} />
           <Row gap={spacing.sm}>
-            <Button small title="Camera" icon="📷" loading={busyItem === pr.item.id + 'camera'} onPress={() => onAdd(pr.item, 'camera')} />
-            <Button small variant="secondary" title="Import" icon="🖼️" loading={busyItem === pr.item.id + 'import'} onPress={() => onAdd(pr.item, 'import')} />
+            <Button small title="Camera" icon="camera" loading={busyItem === pr.item.id + 'camera'} onPress={() => onAdd(pr.item, 'camera')} />
+            <Button small variant="secondary" title="Import" icon="image" loading={busyItem === pr.item.id + 'import'} onPress={() => onAdd(pr.item, 'import')} />
           </Row>
         </Card>
       ))}
@@ -352,7 +359,7 @@ export default function InstallScreen() {
         </Txt>
       ) : null}
       <Spacer size={spacing.sm} />
-      <Button title="Submit installation for review" icon="📤" onPress={submit} loading={submitting} disabled={!canSubmitAll} full />
+      <Button title="Submit installation for review" icon="upload" onPress={submit} loading={submitting} disabled={!canSubmitAll} full />
       <Spacer size={spacing.xxxl} />
     </Screen>
   );

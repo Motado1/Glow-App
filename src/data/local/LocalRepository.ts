@@ -9,9 +9,12 @@ import {
   deriveOverallFromBoxInstall,
   deriveOverallFromPreInstall,
   isPreInstallProblem,
+  PRE_INSTALL_STATUS_LABEL,
   type BoxInstallStatus,
   type PreInstallStatus,
 } from '@/domain/status';
+import { CONNECTIVITY_LABEL, PROBLEM_TYPE_LABEL, REJECT_REASON_LABEL } from '@/domain/types';
+import { checklistLabel } from '@/features/photos/checklist';
 import type {
   ActivityEvent,
   ActivityFilter,
@@ -199,7 +202,7 @@ export class LocalRepository implements DataRepository {
         farmId: id,
         glowFarmId: next.glowFarmId,
         kind: 'status_change',
-        message: `Pre-install status → ${patch.preInstallStatus}`,
+        message: `Pre-install ${PRE_INSTALL_STATUS_LABEL[patch.preInstallStatus].toLowerCase()}`,
         byUserId: byUserId ?? 'system',
       });
     }
@@ -265,7 +268,7 @@ export class LocalRepository implements DataRepository {
       farmId: '',
       glowFarmId: '',
       kind: 'imported',
-      message: `Imported ${inserted} new, updated ${updated} farms`,
+      message: `Imported ${inserted} new farm${inserted === 1 ? '' : 's'}, updated ${updated}`,
       byUserId,
     });
     this.emit('farms');
@@ -335,7 +338,7 @@ export class LocalRepository implements DataRepository {
       farmId: photo.farmId,
       glowFarmId: photo.glowFarmId,
       kind: 'photo_added',
-      message: `Added photo: ${photo.checklistKey}`,
+      message: `Photo added — ${checklistLabel(photo.checklistKey)}`,
       byUserId: photo.capturedBy,
     });
     this.emit('photos');
@@ -400,7 +403,7 @@ export class LocalRepository implements DataRepository {
       farmId,
       glowFarmId: farm.glowFarmId,
       kind: 'submitted',
-      message: `Submitted ${photoIds.length} photos for review`,
+      message: `Submitted ${photoIds.length} photo${photoIds.length === 1 ? '' : 's'} for review`,
       byUserId,
     });
     for (const admin of this.admins()) {
@@ -505,7 +508,7 @@ export class LocalRepository implements DataRepository {
         farmId: farm.id,
         glowFarmId: farm.glowFarmId,
         kind: 'retake_requested',
-        message: `${sub.phase === 'post_install' ? 'Correction' : 'Retake'} requested (${decision.reason})${decision.note ? `: ${decision.note}` : ''}`,
+        message: `${sub.phase === 'post_install' ? 'Correction' : 'Retake'} requested — ${REJECT_REASON_LABEL[decision.reason].toLowerCase()}${decision.note ? `: ${decision.note}` : ''}`,
         byUserId,
       });
       await this.pushNotification({
@@ -575,7 +578,7 @@ export class LocalRepository implements DataRepository {
         farmId: farm.id,
         glowFarmId: farm.glowFarmId,
         kind: 'problem_reported',
-        message: `Problem reported: ${input.type}`,
+        message: `Problem reported — ${PROBLEM_TYPE_LABEL[input.type].toLowerCase()}`,
         byUserId: input.reportedBy,
       });
       for (const admin of this.admins()) {
@@ -583,7 +586,7 @@ export class LocalRepository implements DataRepository {
           userId: admin.id,
           type: 'problem_reported',
           title: 'Problem reported',
-          body: `${farm.glowFarmId} · ${input.type}`,
+          body: `${farm.glowFarmId} · ${PROBLEM_TYPE_LABEL[input.type]}`,
           farmId: farm.id,
           glowFarmId: farm.glowFarmId,
         });
@@ -749,7 +752,7 @@ export class LocalRepository implements DataRepository {
       farmId: input.farmId,
       glowFarmId: input.glowFarmId,
       kind: 'note',
-      message: `Box installation recorded (serial ${rec.boxSerial}, connectivity ${rec.connectivityTest.status})`,
+      message: `Box installation recorded — serial ${rec.boxSerial}, connectivity ${CONNECTIVITY_LABEL[rec.connectivityTest.status].toLowerCase()}`,
       byUserId,
     });
     this.emit('box_installations');

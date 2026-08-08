@@ -391,6 +391,12 @@ export type EntityKind =
 /* --------------------------- Box installation ---------------------------- */
 
 export type ConnectivityStatus = 'pending' | 'passed' | 'failed';
+
+export const CONNECTIVITY_LABEL: Record<ConnectivityStatus, string> = {
+  pending: 'Not tested',
+  passed: 'Passed',
+  failed: 'Failed',
+};
 export type NetworkType = 'cellular' | 'ethernet' | 'wifi' | '';
 
 export interface ConnectivityTest {

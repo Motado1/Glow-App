@@ -36,7 +36,8 @@ export function SyncChip() {
 
   return (
     <Pressable onPress={toggle} hitSlop={8}>
-      <Badge label={`${online ? '🟢' : '⚫'} ${label}`} tone={tone} />
+      {/* The state marker is a Glow petal, tinted by the tone — not a dot. */}
+      <Badge label={label} tone={tone} icon="diamond" />
     </Pressable>
   );
 }

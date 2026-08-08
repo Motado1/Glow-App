@@ -3,9 +3,10 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Header } from '@/components/Header';
 import { PhotoThumb } from '@/components/PhotoThumb';
-import { Button, Card, Divider, Field, Row, Screen, SegmentedControl, Spacer, Txt } from '@/components/ui';
+import { Button, Card, Divider, Field, IconLine, Loading, Row, Screen, SegmentedControl, Spacer, Txt } from '@/components/ui';
+import { checklistLabel } from '@/features/photos/checklist';
 import { repo } from '@/data';
-import { REJECT_REASON_LABEL, type Photo, type RejectReason } from '@/domain/types';
+import { CONNECTIVITY_LABEL, REJECT_REASON_LABEL, type Photo, type RejectReason } from '@/domain/types';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
 import { colors, radius, spacing } from '@/theme';
@@ -41,7 +42,7 @@ export default function SubmissionReview() {
     return (
       <Screen>
         <Header title="Review" onBack={() => router.back()} />
-        <Txt>Loading…</Txt>
+        <Loading />
       </Screen>
     );
   }
@@ -78,23 +79,22 @@ export default function SubmissionReview() {
   return (
     <Screen scroll>
       <Header
+        eyebrow={submission.phase === 'post_install' ? 'Post-install' : 'Pre-install'}
         title={`Review ${submission.glowFarmId}`}
-        subtitle={`${submission.phase === 'post_install' ? 'Post-install' : 'Pre-install'} · ${photos.length} photos`}
+        subtitle={`${photos.length} photo${photos.length === 1 ? '' : 's'}`}
         onBack={() => router.back()}
       />
       {boxInstall ? (
         <Card style={{ marginBottom: spacing.md }}>
           <Txt variant="subtitle">Monitoring box</Txt>
+          <Row gap={spacing.sm} wrap>
+            <Txt variant="mono" color={colors.textMuted}>
+              {boxInstall.boxSerial}
+            </Txt>
+            <Txt variant="caption">{boxInstall.networkType || 'Network not recorded'}</Txt>
+          </Row>
           <Txt variant="caption">
-            Serial {boxInstall.boxSerial} · {boxInstall.networkType || 'network n/a'}
-          </Txt>
-          <Txt variant="caption">
-            Connectivity:{' '}
-            {boxInstall.connectivityTest.status === 'passed'
-              ? 'Passed ✓'
-              : boxInstall.connectivityTest.status === 'failed'
-                ? 'Failed ✗'
-                : 'Not tested'}
+            Connectivity {CONNECTIVITY_LABEL[boxInstall.connectivityTest.status].toLowerCase()}
             {boxInstall.problems ? ` · Deficiency: ${boxInstall.problems}` : ''}
           </Txt>
         </Card>
@@ -111,9 +111,19 @@ export default function SubmissionReview() {
                 <View style={{ borderWidth: 2, borderRadius: radius.md, borderColor: marked ? colors.dangerText : 'transparent' }}>
                   <PhotoThumb localKey={p.localKey} size={92} />
                 </View>
-                <Txt variant="caption" numberOfLines={1}>
-                  {marked ? '↻ retake' : p.reviewState === 'rejected' ? '✗ rejected' : p.checklistKey}
-                </Txt>
+                {marked ? (
+                  <IconLine icon="retake" size={11} color={colors.dangerText} numberOfLines={1}>
+                    Marked
+                  </IconLine>
+                ) : p.reviewState === 'rejected' ? (
+                  <IconLine icon="cross" size={11} color={colors.dangerText} numberOfLines={1}>
+                    Rejected
+                  </IconLine>
+                ) : (
+                  <Txt variant="caption" numberOfLines={1} align="center">
+                    {checklistLabel(p.checklistKey)}
+                  </Txt>
+                )}
               </View>
             </Pressable>
           );
@@ -123,9 +133,14 @@ export default function SubmissionReview() {
       {decided ? (
         <>
           <Divider />
-          <Txt variant="subtitle">
-            This submission was {submission.status === 'approved' ? 'approved ✅' : 'sent back for retakes ↻'}.
-          </Txt>
+          <IconLine
+            icon={submission.status === 'approved' ? 'check' : 'retake'}
+            variant="subtitle"
+            size={15}
+            color={submission.status === 'approved' ? colors.successText : colors.dangerText}
+          >
+            {submission.status === 'approved' ? 'Approved.' : 'Sent back for retakes.'}
+          </IconLine>
         </>
       ) : (
         <>
@@ -141,9 +156,9 @@ export default function SubmissionReview() {
           <Field label="Reviewer note (optional)" value={note} onChangeText={setNote} placeholder="Explain what to fix…" multiline />
           <Spacer />
           {retake.size > 0 ? (
-            <Button title={`Request ${retake.size} retake${retake.size === 1 ? '' : 's'}`} variant="danger" icon="↻" onPress={requestRetakes} loading={busy} full />
+            <Button title={`Request ${retake.size} retake${retake.size === 1 ? '' : 's'}`} variant="danger" icon="retake" onPress={requestRetakes} loading={busy} full />
           ) : (
-            <Button title="Approve all photos" icon="✅" onPress={approve} loading={busy} full />
+            <Button title="Approve all photos" icon="check" onPress={approve} loading={busy} full />
           )}
         </>
       )}

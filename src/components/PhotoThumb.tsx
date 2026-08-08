@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Txt } from '@/components/ui';
+import { GlowIcon } from '@/components/brand/GlowIcon';
 import { files } from '@/data';
 import { colors, radius } from '@/theme';
 
@@ -41,7 +41,7 @@ export function PhotoThumb({ localKey, size = 72 }: { localKey: string; size?: n
       {uri ? (
         <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" />
       ) : (
-        <Txt variant="caption">{loading ? '…' : '📷'}</Txt>
+        <GlowIcon name="camera" size={size * 0.3} color={colors.textFaint} strokeWidth={loading ? 1.2 : 1.75} />
       )}
     </View>
   );
