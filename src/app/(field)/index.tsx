@@ -5,7 +5,6 @@ import { FarmCard } from '@/components/FarmCard';
 import { GlowIcon } from '@/components/brand/GlowIcon';
 import { GlowLockup } from '@/components/brand/GlowLogo';
 import { Header } from '@/components/Header';
-import { SignOutButton } from '@/components/SignOutButton';
 import { SyncChip } from '@/components/SyncChip';
 import { Button, Card, Divider, EmptyState, Row, Screen, Spacer, Stat, StatGrid, Txt } from '@/components/ui';
 import { repo } from '@/data';
@@ -13,6 +12,7 @@ import { isBoxInstallDone, isFieldBlocked, isPreInstallDone } from '@/domain/sta
 import type { Farm } from '@/domain/types';
 import { optimizeRoute } from '@/features/routing/optimizeRoute';
 import { resolveStart } from '@/features/routing/startPoint';
+import { useHomeBase } from '@/stores/useHomeBase';
 import { formatDuration, formatMiles } from '@/lib/geo';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
@@ -36,7 +36,8 @@ export default function Today() {
     [mine],
   );
   const primaryState = mine[0]?.state ?? 'Your';
-  const start = useMemo(() => resolveStart(startMode, active), [startMode, active]);
+  const home = useHomeBase();
+  const start = useMemo(() => resolveStart(startMode, active, home), [startMode, active, home]);
   const route = useMemo(() => optimizeRoute(active, start.point), [active, start.point]);
   const firstFarm = route.stops[0] ? mine.find((f) => f.id === route.stops[0].farmId) : undefined;
 
@@ -53,7 +54,7 @@ export default function Today() {
         eyebrow={primaryState}
         title="Today's assignment"
         subtitle={user?.name}
-        right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
+        right={<SyncChip />}
       />
 
       {total === 0 ? (
@@ -135,7 +136,7 @@ function InstallerToday({ name, state, farms }: { name?: string; state: string; 
         eyebrow={state}
         title="Today's installations"
         subtitle={name}
-        right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
+        right={<SyncChip />}
       />
       {total === 0 ? (
         <EmptyState title="No installations assigned yet" subtitle="Farms appear here once they've reached PTO and been assigned to you." />

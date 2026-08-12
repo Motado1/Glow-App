@@ -27,7 +27,10 @@ import type {
   NewActivityEvent,
   NewNotification,
   NewPhoto,
+  CheckIn,
+  NewCheckIn,
   NewProblem,
+  NewUser,
   Photo,
   PhotoPhase,
   Problem,
@@ -42,7 +45,7 @@ import type {
 import type { FarmImportRow } from '@/features/import/rows';
 import { nowIso } from '@/lib/date';
 import { uuid } from '@/lib/id';
-import { buildSeed } from './seed';
+import { buildEmptyWorkspace, type WorkspaceData } from './seed';
 import { KEYS, readJson, writeJson } from './storage';
 
 export class LocalRepository implements DataRepository {
@@ -54,6 +57,7 @@ export class LocalRepository implements DataRepository {
   private notifications: AppNotification[] = [];
   private users: User[] = [];
   private boxInstallations: BoxInstallation[] = [];
+  private checkIns: CheckIn[] = [];
   private loaded = false;
   private listeners = new Map<EntityKind, Set<() => void>>();
 
@@ -61,9 +65,9 @@ export class LocalRepository implements DataRepository {
 
   async init(): Promise<void> {
     if (this.loaded) return;
-    const seeded = await readJson<boolean>(KEYS.seeded, false);
-    if (!seeded) {
-      await this.applySeed();
+    const initialized = await readJson<boolean>(KEYS.seeded, false);
+    if (!initialized) {
+      await this.applyWorkspace(buildEmptyWorkspace());
     } else {
       this.farms = await readJson<Farm[]>(KEYS.farms, []);
       this.photos = await readJson<Photo[]>(KEYS.photos, []);
@@ -73,28 +77,47 @@ export class LocalRepository implements DataRepository {
       this.notifications = await readJson<AppNotification[]>(KEYS.notifications, []);
       this.users = await readJson<User[]>(KEYS.users, []);
       this.boxInstallations = await readJson<BoxInstallation[]>(KEYS.boxInstallations, []);
+      this.checkIns = await readJson<CheckIn[]>(KEYS.checkIns, []);
     }
     this.loaded = true;
   }
 
+  /**
+   * Erase everything and start over with a single administrator.
+   *
+   * This used to mean "wipe and reseed", which put 67 fabricated farms back on
+   * top of whatever was there. It now means what the word says. The confirm
+   * step lives at the call site.
+   */
   async reset(): Promise<void> {
-    await this.applySeed();
-    this.loaded = true;
-    (['farms', 'photos', 'submissions', 'problems', 'activity', 'notifications', 'box_installations'] as EntityKind[]).forEach(
-      (e) => this.emit(e),
-    );
+    await this.applyWorkspace(buildEmptyWorkspace());
+    this.emitAll();
   }
 
-  private async applySeed(): Promise<void> {
-    const seed = buildSeed();
-    this.users = seed.users;
-    this.farms = seed.farms;
-    this.photos = seed.photos;
-    this.submissions = seed.submissions;
-    this.problems = seed.problems;
-    this.activity = seed.activity;
-    this.notifications = seed.notifications;
-    this.boxInstallations = seed.boxInstallations;
+  /**
+   * Replace the workspace with the sample dataset. Explicit and opt-in — it is
+   * as destructive as `reset`, so it is confirmed the same way.
+   *
+   * Imported lazily: the generator and its name tables are a few hundred lines
+   * that a real workspace never touches, so they stay out of the startup path.
+   */
+  async loadSampleData(): Promise<void> {
+    const { buildSampleData } = await import('./sampleData');
+    await this.applyWorkspace(buildSampleData());
+    this.emitAll();
+  }
+
+  private async applyWorkspace(data: WorkspaceData): Promise<void> {
+    this.users = data.users;
+    this.farms = data.farms;
+    this.photos = data.photos;
+    this.submissions = data.submissions;
+    this.problems = data.problems;
+    this.activity = data.activity;
+    this.notifications = data.notifications;
+    this.boxInstallations = data.boxInstallations;
+    this.checkIns = [];
+    this.loaded = true;
     await Promise.all([
       writeJson(KEYS.users, this.users),
       writeJson(KEYS.farms, this.farms),
@@ -104,8 +127,15 @@ export class LocalRepository implements DataRepository {
       writeJson(KEYS.activity, this.activity),
       writeJson(KEYS.notifications, this.notifications),
       writeJson(KEYS.boxInstallations, this.boxInstallations),
+      writeJson(KEYS.checkIns, this.checkIns),
       writeJson(KEYS.seeded, true),
     ]);
+  }
+
+  private emitAll(): void {
+    (['farms', 'photos', 'submissions', 'problems', 'activity', 'notifications', 'box_installations', 'users', 'check_ins'] as EntityKind[]).forEach(
+      (e) => this.emit(e),
+    );
   }
 
   private async ensure(): Promise<void> {
@@ -129,6 +159,77 @@ export class LocalRepository implements DataRepository {
   }
 
   /* -------------------------------- users -------------------------------- */
+
+  /* ----------------------------- Check-ins ----------------------------- */
+
+  async recordCheckIn(input: NewCheckIn): Promise<CheckIn> {
+    await this.ensure();
+    const checkIn: CheckIn = { ...input, id: uuid() };
+    this.checkIns.push(checkIn);
+    await writeJson(KEYS.checkIns, this.checkIns);
+    this.emit('check_ins');
+    return checkIn;
+  }
+
+  async listCheckIns(farmId: string): Promise<CheckIn[]> {
+    await this.ensure();
+    return this.checkIns
+      .filter((c) => c.farmId === farmId)
+      .sort((a, b) => b.at.localeCompare(a.at));
+  }
+
+  /* ------------------------------- Users -------------------------------- */
+
+  /**
+   * Add someone to the roster. Email is the sign-in key, so a collision is a
+   * hard error rather than a second row that shadows the first — comparison is
+   * case-insensitive because nobody types their address the same way twice.
+   */
+  async createUser(input: NewUser): Promise<User> {
+    await this.ensure();
+    const email = input.email.trim().toLowerCase();
+    if (!email) throw new Error('An email address is required.');
+    if (this.users.some((u) => u.email.trim().toLowerCase() === email)) {
+      throw new Error('Someone already uses that email address.');
+    }
+    const user: User = {
+      ...input,
+      id: uuid(),
+      name: input.name.trim(),
+      email,
+      active: input.active ?? true,
+    };
+    this.users.push(user);
+    await writeJson(KEYS.users, this.users);
+    this.emit('users');
+    return user;
+  }
+
+  async updateUser(id: string, patch: Partial<Omit<User, 'id'>>): Promise<User> {
+    await this.ensure();
+    const idx = this.users.findIndex((u) => u.id === id);
+    if (idx < 0) throw new Error(`User ${id} not found`);
+    const email = patch.email?.trim().toLowerCase();
+    if (email && this.users.some((u) => u.id !== id && u.email.trim().toLowerCase() === email)) {
+      throw new Error('Someone already uses that email address.');
+    }
+    const prev = this.users[idx];
+    const next: User = { ...prev, ...patch, ...(email ? { email } : null) };
+    // Deactivating or demoting the last active administrator would leave nobody
+    // able to reach People and undo it.
+    const wasActiveAdmin = prev.active && prev.role === 'admin';
+    const stillActiveAdmin = next.active && next.role === 'admin';
+    if (wasActiveAdmin && !stillActiveAdmin) {
+      const otherAdmins = this.users.filter((u) => u.id !== id && u.active && u.role === 'admin').length;
+      if (otherAdmins === 0) {
+        throw new Error('This is the only active administrator. Add another one first.');
+      }
+    }
+    this.users[idx] = next;
+    await writeJson(KEYS.users, this.users);
+    this.emit('users');
+    return next;
+  }
 
   async listUsers(): Promise<User[]> {
     await this.ensure();
@@ -225,6 +326,10 @@ export class LocalRepository implements DataRepository {
       const location = row.lat !== undefined && row.lng !== undefined
         ? { lat: row.lat, lng: row.lng }
         : undefined;
+      const contact =
+        row.contactName || row.contactPhone || row.contactEmail
+          ? { name: row.contactName, phone: row.contactPhone, email: row.contactEmail }
+          : undefined;
       if (existing) {
         // Blank optional cells must never wipe existing data.
         Object.assign(existing, {
@@ -237,6 +342,9 @@ export class LocalRepository implements DataRepository {
           notes: row.notes ?? existing.notes,
           accessInstructions: row.accessInstructions ?? existing.accessInstructions,
           scheduledDate: row.scheduledDate ?? existing.scheduledDate,
+          // Merge rather than replace: a file carrying only a phone number
+          // shouldn't drop a name someone typed in by hand.
+          contact: contact ? { ...existing.contact, ...contact } : existing.contact,
           updatedAt: now,
         });
         updated++;
@@ -257,6 +365,7 @@ export class LocalRepository implements DataRepository {
           notes: row.notes,
           accessInstructions: row.accessInstructions,
           scheduledDate: row.scheduledDate,
+          contact,
           createdAt: now,
           updatedAt: now,
         });

@@ -10,6 +10,7 @@ import type { GeoPoint } from '@/domain/types';
 import { buildAppleMapsDestUrl, buildGoogleMapsDestUrl, buildGoogleMapsRouteUrl } from '@/features/routing/mapsLinks';
 import { optimizeRoute } from '@/features/routing/optimizeRoute';
 import { resolveStart } from '@/features/routing/startPoint';
+import { useHomeBase } from '@/stores/useHomeBase';
 import { formatDuration, formatMiles } from '@/lib/geo';
 import { useCurrentUser } from '@/stores/authStore';
 import { useRepoQuery } from '@/stores/useRepoQuery';
@@ -26,7 +27,8 @@ export default function RouteScreen() {
     () => (farms ?? []).filter((f) => !isPreInstallDone(f.preInstallStatus) && !isFieldBlocked(f.preInstallStatus)),
     [farms],
   );
-  const start = useMemo(() => resolveStart(startMode, active), [startMode, active]);
+  const home = useHomeBase();
+  const start = useMemo(() => resolveStart(startMode, active, home), [startMode, active, home]);
   const route = useMemo(() => optimizeRoute(active, start.point), [active, start.point]);
   const farmById = (id: string) => active.find((f) => f.id === id);
 

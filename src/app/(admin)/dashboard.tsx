@@ -1,66 +1,117 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { View } from 'react-native';
-import { WorkerSection } from '@/components/admin/WorkerSection';
+import { useMemo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { GlowIcon, type IconName } from '@/components/brand/GlowIcon';
 import { GlowLockup } from '@/components/brand/GlowLogo';
 import { Header } from '@/components/Header';
 import { SyncChip } from '@/components/SyncChip';
-import { Card, Divider, EmptyState, Row, Screen, SegmentedControl, Spacer, Stat, StatGrid, Txt } from '@/components/ui';
+import { Button, Card, Row, Screen, Spacer, Txt } from '@/components/ui';
 import { repo } from '@/data';
 import { isPreInstallDone } from '@/domain/status';
-import type { WorkRole } from '@/domain/types';
-import { WORKER_FILTERS, type WorkerFilter } from '@/features/assignments/summarize';
-import { isOverdue, todayIso } from '@/lib/date';
+import { isOverdue } from '@/lib/date';
 import { useCurrentUser } from '@/stores/authStore';
-import { useAssignmentSummaries } from '@/stores/useAssignmentSummaries';
 import { useRepoQuery } from '@/stores/useRepoQuery';
-import { colors, radius, spacing } from '@/theme';
+import { colors, fontFamily, spacing, tabularNums } from '@/theme';
+
+/**
+ * The first screen an administrator sees.
+ *
+ * It used to carry 13 stat tiles, two segmented controls, an auto-expanded
+ * per-worker section and a per-state progress list — around 30 stacked blocks,
+ * most of them numbers with nowhere to go. Field feedback: too busy.
+ *
+ * So this page answers exactly one question: **what needs you right now?** Each
+ * row disappears at zero, which means an ordinary morning shows almost nothing —
+ * that emptiness is the feature. The numbers all still exist, on Progress; the
+ * per-worker breakdown lives on People.
+ */
+
+interface Item {
+  key: string;
+  count: number;
+  icon: IconName;
+  label: string;
+  /** Only the genuinely time-sensitive rows are tinted; everything can't be urgent. */
+  urgent?: boolean;
+  href: string;
+}
 
 export default function Dashboard() {
   const user = useCurrentUser();
   const { data: farms } = useRepoQuery(() => repo.listFarms(), [], ['farms']);
   const { data: submissions } = useRepoQuery(() => repo.listSubmissions(), [], ['submissions']);
   const { data: problems } = useRepoQuery(() => repo.listProblems({ resolved: false }), [], ['problems']);
-
-  const [role, setRole] = useState<WorkRole>('photographer');
-  const [filter, setFilter] = useState<WorkerFilter>('all');
-  const summaries = useAssignmentSummaries(farms, role);
+  const { data: users } = useRepoQuery(() => repo.listUsers(), [], ['users']);
 
   const f = farms ?? [];
   const subs = submissions ?? [];
   const probs = problems ?? [];
-  const today = todayIso();
 
-  const stats = useMemo(() => {
-    const needsPre = f.filter((x) => x.preInstallStatus === 'ready_for_assignment' || x.preInstallStatus === 'not_ready').length;
-    const assigned = f.filter((x) => x.assignedPhotographerId && !isPreInstallDone(x.preInstallStatus)).length;
-    const awaitingReview = subs.filter((s) => s.status === 'submitted' || s.status === 'under_review').length;
-    const retakes = f.filter((x) => x.preInstallStatus === 'retake_required').length;
-    const overdue = f.filter((x) => isOverdue(x.scheduledDate, isPreInstallDone(x.preInstallStatus))).length;
-    const approvedToday = f.filter((x) => x.completionDate?.slice(0, 10) === today).length;
-    const traveling = new Set(
-      f.filter((x) => x.assignedPhotographerId && x.preInstallStatus === 'in_progress').map((x) => x.assignedPhotographerId),
-    ).size;
-    const ptoReached = f.filter((x) => x.ptoStatus === 'reached' && x.boxInstallStatus !== 'complete').length;
-    const readyForInstall = f.filter((x) => x.boxInstallStatus === 'ready_for_assignment').length;
-    const installing = f.filter((x) => x.assignedInstallerId && x.boxInstallStatus !== 'complete').length;
-    const notConnected = f.filter((x) => x.boxInstallStatus === 'connectivity_failed').length;
-    const fieldComplete = f.filter((x) => x.overallStatus === 'field_ops_complete').length;
-    return { needsPre, assigned, awaitingReview, retakes, overdue, approvedToday, traveling, ptoReached, readyForInstall, installing, notConnected, fieldComplete };
-  }, [f, subs, today]);
+  const items = useMemo<Item[]>(() => {
+    const rows: Item[] = [
+      {
+        key: 'review',
+        count: subs.filter((s) => s.status === 'submitted' || s.status === 'under_review').length,
+        icon: 'review',
+        label: 'waiting on your review',
+        urgent: true,
+        href: '/(admin)/review',
+      },
+      {
+        key: 'problems',
+        count: probs.length,
+        icon: 'alert',
+        label: 'problems reported from the field',
+        urgent: true,
+        href: '/(admin)/problems',
+      },
+      {
+        key: 'overdue',
+        count: f.filter((x) => isOverdue(x.scheduledDate, isPreInstallDone(x.preInstallStatus))).length,
+        icon: 'clock',
+        label: 'farms past their scheduled date',
+        urgent: true,
+        href: '/(admin)/farms?preset=overdue',
+      },
+      {
+        key: 'retakes',
+        count: f.filter((x) => x.preInstallStatus === 'retake_required').length,
+        icon: 'retake',
+        label: 'retakes not reshot yet',
+        href: '/(admin)/farms?preset=retakes',
+      },
+      {
+        key: 'unassigned',
+        count: f.filter(
+          (x) =>
+            !x.assignedPhotographerId &&
+            (x.preInstallStatus === 'ready_for_assignment' || x.preInstallStatus === 'not_ready'),
+        ).length,
+        icon: 'assign',
+        label: 'farms with nobody assigned',
+        href: '/(admin)/assignments',
+      },
+      {
+        key: 'nopin',
+        count: f.filter((x) => !x.location).length,
+        icon: 'pin',
+        label: 'farms with no map pin — they can’t be routed',
+        href: '/(admin)/farms?preset=nopin',
+      },
+    ];
+    return rows.filter((r) => r.count > 0);
+  }, [f, subs, probs]);
 
-  const byState = useMemo(() => {
-    const map = new Map<string, { total: number; done: number }>();
-    for (const x of f) {
-      // Imported coordinate-only farms may have no state yet.
-      const key = x.state || 'Unspecified';
-      const e = map.get(key) ?? { total: 0, done: 0 };
-      e.total++;
-      if (isPreInstallDone(x.preInstallStatus)) e.done++;
-      map.set(key, e);
-    }
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const totals = useMemo(() => {
+    const complete = f.filter((x) => isPreInstallDone(x.preInstallStatus)).length;
+    const inProgress = f.filter((x) => x.assignedPhotographerId && !isPreInstallDone(x.preInstallStatus)).length;
+    return { total: f.length, inProgress, complete };
   }, [f]);
+
+  // A brand-new workspace has no farms and no crew. Point at the two things
+  // that have to happen before anything else works, rather than a blank page.
+  const firstRun = f.length === 0;
+  const alone = (users ?? []).length <= 1;
 
   return (
     <Screen scroll>
@@ -69,79 +120,117 @@ export default function Dashboard() {
       </View>
       <Header eyebrow="Overview" title="Field Operations" subtitle={user?.name} right={<SyncChip />} />
 
-      <StatGrid>
-        <Stat label="Need pre-install photos" value={stats.needsPre} tone="info" onPress={() => router.push('/(admin)/farms?preset=unassigned' as never)} />
-        <Stat label="Currently assigned" value={stats.assigned} tone="progress" onPress={() => router.push('/(admin)/farms?preset=assigned' as never)} />
-        <Stat label="Awaiting review" value={stats.awaitingReview} tone="warning" onPress={() => router.push('/(admin)/review')} />
-        <Stat label="Retakes required" value={stats.retakes} tone="danger" onPress={() => router.push('/(admin)/farms?preset=retakes' as never)} />
-        <Stat label="Overdue" value={stats.overdue} tone="danger" onPress={() => router.push('/(admin)/farms?preset=overdue' as never)} />
-        <Stat label="Approved today" value={stats.approvedToday} tone="success" />
-        <Stat label="Photographers traveling" value={stats.traveling} tone="info" />
-        <Stat label="Open problems" value={probs.length} tone="danger" onPress={() => router.push('/(admin)/farms?preset=problems' as never)} />
-      </StatGrid>
-
-      <Spacer size={spacing.lg} />
-      <Txt variant="overline">Box installation</Txt>
-      <Spacer size={spacing.sm} />
-      <StatGrid>
-        <Stat label="PTO reached" value={stats.ptoReached} tone="info" />
-        <Stat label="Ready for install" value={stats.readyForInstall} tone="info" onPress={() => router.push('/(admin)/assignments')} />
-        <Stat label="Installs in progress" value={stats.installing} tone="progress" />
-        <Stat label="Installed, not connected" value={stats.notConnected} tone="danger" />
-        <Stat label="Field ops complete" value={stats.fieldComplete} tone="success" />
-      </StatGrid>
-
-      <Divider />
-
-      <Txt variant="overline">By {role === 'installer' ? 'installer' : 'photographer'}</Txt>
-      <Spacer size={spacing.sm} />
-      <SegmentedControl
-        options={[
-          { value: 'photographer', label: 'Photographers', icon: 'camera' },
-          { value: 'installer', label: 'Installers', icon: 'box' },
-        ]}
-        value={role}
-        onChange={(r) => setRole(r as WorkRole)}
-      />
-      <Spacer size={spacing.sm} />
-      <Txt variant="label">Show</Txt>
-      <Spacer size={spacing.xs} />
-      <SegmentedControl options={WORKER_FILTERS} value={filter} onChange={setFilter} />
-      <Spacer size={spacing.md} />
-
-      {summaries.length === 0 ? (
-        <EmptyState
-          title={`No ${role === 'installer' ? 'installers' : 'photographers'} assigned`}
-          subtitle="Assign farms from the Assign tab and they'll show up here."
-        />
+      {firstRun ? (
+        <Card>
+          <Txt variant="heading">Let&rsquo;s get your farms in</Txt>
+          <Txt variant="body" color={colors.textMuted} style={{ marginTop: spacing.xs }}>
+            Nothing has been added yet. Import your farm list from a spreadsheet, then add the
+            photographers and installers who&rsquo;ll be working them.
+          </Txt>
+          <Spacer size={spacing.lg} />
+          <Row gap={spacing.sm} wrap>
+            <Button title="Import farms" icon="upload" onPress={() => router.push('/(admin)/import')} />
+            <Button
+              title={alone ? 'Add your people' : 'People'}
+              icon="user"
+              variant="secondary"
+              onPress={() => router.push('/(admin)/people' as never)}
+            />
+          </Row>
+        </Card>
+      ) : items.length === 0 ? (
+        <Card>
+          <Row gap={spacing.md}>
+            <GlowIcon name="check" size={22} color={colors.successText} />
+            <View style={{ flex: 1 }}>
+              <Txt variant="subtitle">Nothing needs you right now</Txt>
+              <Txt variant="caption">
+                No reviews waiting, no problems reported, nothing overdue.
+              </Txt>
+            </View>
+          </Row>
+        </Card>
       ) : (
-        summaries.map((s, i) => (
-          <WorkerSection key={s.userId} summary={s} filter={filter} defaultOpen={i === 0} />
-        ))
+        <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderStrong }}>
+          {items.map((it) => (
+            <Pressable
+              key={it.key}
+              onPress={() => router.push(it.href as never)}
+              style={({ pressed }) => [
+                {
+                  paddingVertical: spacing.md,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: colors.border,
+                },
+                pressed ? { opacity: 0.6 } : null,
+              ]}
+            >
+              <Row gap={spacing.md}>
+                <Txt
+                  style={[
+                    styles.count,
+                    { color: it.urgent ? colors.dangerText : colors.text },
+                  ]}
+                >
+                  {it.count}
+                </Txt>
+                <View style={{ flex: 1 }}>
+                  <Txt variant="body">{it.label}</Txt>
+                </View>
+                <GlowIcon name={it.icon} size={17} color={colors.textFaint} />
+                <GlowIcon name="chevron-right" size={15} color={colors.textFaint} />
+              </Row>
+            </Pressable>
+          ))}
+        </View>
       )}
 
-      <Divider />
-      <Txt variant="overline">By state</Txt>
-      <Spacer size={spacing.sm} />
-      {byState.map(([state, e]) => {
-        const pct = e.total ? Math.round((e.done / e.total) * 100) : 0;
-        return (
-          <Card key={state} style={{ marginBottom: spacing.sm }}>
-            <Row justify="space-between">
-              <Txt variant="subtitle">{state}</Txt>
-              <Txt variant="label">
-                {e.done}/{e.total} complete · {pct}%
-              </Txt>
-            </Row>
-            <View style={{ height: 8, backgroundColor: colors.surfaceAlt, borderRadius: radius.pill, marginTop: spacing.sm, overflow: 'hidden' }}>
-              <View style={{ width: `${pct}%`, height: 8, backgroundColor: colors.accent }} />
-            </View>
-          </Card>
-        );
-      })}
-
-      <Divider />
-      <Txt variant="caption">{f.length} farms on record.</Txt>
+      {!firstRun ? (
+        <>
+          <Spacer size={spacing.xl} />
+          <Row gap={spacing.xl} wrap>
+            <Figure value={totals.total} label="Farms" />
+            <Figure value={totals.inProgress} label="In progress" />
+            <Figure value={totals.complete} label="Complete" />
+          </Row>
+          <Spacer size={spacing.md} />
+          <Txt
+            variant="label"
+            color={colors.brand}
+            onPress={() => router.push('/(admin)/progress' as never)}
+          >
+            See all the numbers
+          </Txt>
+        </>
+      ) : null}
     </Screen>
   );
 }
+
+function Figure({ value, label }: { value: number; label: string }) {
+  return (
+    <View>
+      <Txt style={styles.figure}>{value}</Txt>
+      <Txt variant="overline">{label}</Txt>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  count: {
+    fontFamily: fontFamily.sansBold,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: -1,
+    minWidth: 42,
+    ...tabularNums,
+  },
+  figure: {
+    fontFamily: fontFamily.sansBold,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -1.2,
+    color: colors.brand,
+    ...tabularNums,
+  },
+});

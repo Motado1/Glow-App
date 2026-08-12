@@ -18,7 +18,17 @@ export interface ResolvedStart {
   label: string;
 }
 
-export function resolveStart(mode: StartMode, farms: Farm[]): ResolvedStart {
+export interface HomeBase {
+  point: GeoPoint;
+  label: string;
+}
+
+/**
+ * @param home The signed-in worker's home base, if it has been geocoded. In
+ * `auto` mode this beats "wherever the first farm happens to be" — a route
+ * should start where the person starts their day.
+ */
+export function resolveStart(mode: StartMode, farms: Farm[], home?: HomeBase): ResolvedStart {
   switch (mode.kind) {
     case 'current':
       return { point: mode.point, label: 'My current location' };
@@ -28,10 +38,11 @@ export function resolveStart(mode: StartMode, farms: Farm[]): ResolvedStart {
       const f = farms.find((x) => x.id === mode.farmId);
       if (f?.location) return { point: f.location, label: f.name };
       // Farm was completed, unassigned, or never had coordinates — fall back.
-      return resolveStart({ kind: 'auto' }, farms);
+      return resolveStart({ kind: 'auto' }, farms, home);
     }
     case 'auto':
     default: {
+      if (home) return { point: home.point, label: home.label };
       const f = farms.find((x) => x.location);
       return f?.location
         ? { point: f.location, label: `Near ${f.name}` }

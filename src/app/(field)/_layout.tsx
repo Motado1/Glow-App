@@ -27,6 +27,7 @@ export default function FieldLayout() {
       <Tabs.Screen name="farms" options={{ title: 'Farms', tabBarIcon: tabIcon('farms') }} />
       <Tabs.Screen name="map" options={{ title: 'Map', tabBarIcon: tabIcon('map') }} />
       <Tabs.Screen name="notifications" options={{ title: 'Alerts', tabBarIcon: tabIcon('alerts') }} />
+      <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: tabIcon('more') }} />
       <Tabs.Screen name="farm/[farmId]" options={{ href: null }} />
       <Tabs.Screen name="install/[farmId]" options={{ href: null }} />
       <Tabs.Screen name="route" options={{ href: null }} />

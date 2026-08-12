@@ -99,7 +99,7 @@ function columnIndex(bounds: number[], x: number): number {
 }
 
 function fail(message: string): ParsedFarmImport {
-  return { rows: [], errors: [{ row: 1, message }], headers: [], totalRows: 0 };
+  return { rows: [], errors: [{ row: 1, message }], headers: [], totalRows: 0, duplicateIds: [] };
 }
 
 export async function parseFarmPdf(data: ArrayBuffer): Promise<ParsedFarmImport> {

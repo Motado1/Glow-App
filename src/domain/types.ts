@@ -26,8 +26,16 @@ export interface User {
   phone?: string;
   /** Home base / typical start city, used as a route-start hint. */
   homeBase?: string;
+  /**
+   * `homeBase` geocoded, resolved once when it's set rather than on every route
+   * calculation. Absent if the lookup failed — the text is still kept.
+   */
+  homeBaseLocation?: GeoPoint;
   active: boolean;
 }
+
+/** A person being added to the roster. `active` defaults to true. */
+export type NewUser = Omit<User, 'id' | 'active'> & { active?: boolean };
 
 export interface Session {
   user: User;
@@ -186,8 +194,40 @@ export interface Photo {
   note?: string;
   capturedAt: string;
   capturedBy: string;
+  /**
+   * Where the **device** was when the shot was taken — not the farm's stored
+   * pin. It used to be assigned the farm's own coordinates, which made every
+   * computed distance exactly zero and the field worthless as evidence.
+   */
   location?: GeoPoint;
+  /** GPS accuracy radius in metres, needed to know if `location` means anything. */
+  locationAccuracyM?: number;
 }
+
+/**
+ * A recorded arrival at a farm. One per time someone opens the farm's checklist,
+ * so a farm that took two visits has two.
+ *
+ * Kept as its own row rather than a field on `Farm` because the history is the
+ * point — overwriting it would erase the visit that went wrong.
+ */
+export interface CheckIn {
+  id: string;
+  farmId: string;
+  glowFarmId: string;
+  userId: string;
+  at: string;
+  phase: PhotoPhase;
+  /** Device position. Absent when the fix failed. */
+  point?: GeoPoint;
+  accuracyMeters?: number;
+  /** Straight-line miles to the farm, when both points were known. */
+  distanceMiles?: number;
+  /** A `CheckInVerdict` — stored as a string so the domain owns no feature import. */
+  verdict: string;
+}
+
+export type NewCheckIn = Omit<CheckIn, 'id'>;
 
 /** Input to repo.savePhoto — id + review fields are assigned by the repository. */
 export type NewPhoto = Omit<Photo, 'id' | 'reviewState' | 'rejectionReason' | 'reviewNote'>;
@@ -386,7 +426,9 @@ export type EntityKind =
   | 'problems'
   | 'activity'
   | 'notifications'
-  | 'box_installations';
+  | 'box_installations'
+  | 'users'
+  | 'check_ins';
 
 /* --------------------------- Box installation ---------------------------- */
 

@@ -7,6 +7,8 @@ import { boxInstallStatus, SYNC_LABEL, syncTone } from '@/components/statusHelpe
 import { GlowIcon } from '@/components/brand/GlowIcon';
 import { Badge, Button, Card, ChecklistMark, Divider, Field, IconLine, Loading, Row, Screen, SegmentedControl, Spacer, StatusPill, Txt } from '@/components/ui';
 import { files, repo } from '@/data';
+import { fieldMessage } from '@/features/checkin/classify';
+import { useCheckIn } from '@/features/checkin/useCheckIn';
 import type { BoxInstallationInput, ChecklistItem, ConnectivityStatus, NetworkType, Photo, Submission } from '@/domain/types';
 import { captureFromCamera, pickFromLibrary, type Picked } from '@/features/photos/capture';
 import { canSubmit, checklistFor, computeChecklistProgress, missingRequired } from '@/features/photos/checklist';
@@ -62,6 +64,7 @@ export default function InstallScreen() {
   const enqueue = useSyncStore((s) => s.enqueuePhotoUpload);
 
   const { data: farm } = useRepoQuery(() => repo.getFarm(farmId!), [farmId], ['farms']);
+  const checkIn = useCheckIn(farm ?? undefined, user?.id, 'post_install');
   const { data: existing } = useRepoQuery(() => repo.getBoxInstallation(farmId!), [farmId], ['box_installations']);
   const { data: photos } = useRepoQuery(
     () => (farm ? repo.listPhotos(farm.id, 'post_install') : Promise.resolve([] as Photo[])),
@@ -131,7 +134,9 @@ export default function InstallScreen() {
       boxSerial: form.boxSerial.trim(),
       installerId: user?.id ?? 'unknown',
       installedAt: nowIso(),
-      location: farm!.location,
+      // Where the installer actually stood, from this visit's check-in — not
+      // the farm's own pin, which proves nothing about where the box went.
+      location: checkIn?.point,
       boxVersion: form.boxVersion || undefined,
       powerSupply: form.powerSupply || undefined,
       electricalSystemType: form.electricalSystemType || undefined,
@@ -174,7 +179,8 @@ export default function InstallScreen() {
     const saved = await repo.savePhoto({
       farmId: farm!.id, glowFarmId: farm!.glowFarmId, phase: 'post_install', checklistItemId: item.id,
       checklistKey: item.key, fileName, localKey: fileName, width: picked.width, height: picked.height,
-      source, syncState: 'queued', attempts: 0, capturedAt: now, capturedBy: user?.id ?? 'unknown', location: farm!.location,
+      source, syncState: 'queued', attempts: 0, capturedAt: now, capturedBy: user?.id ?? 'unknown',
+      location: checkIn?.point, locationAccuracyM: checkIn?.accuracyMeters,
     });
     await enqueue(saved.id);
   }
@@ -215,6 +221,23 @@ export default function InstallScreen() {
         <StatusPill label={st.label} tone={st.tone} />
         {farm.equipmentDetails ? <IconLine icon="settings">{farm.equipmentDetails}</IconLine> : null}
       </Row>
+
+      {checkIn ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <IconLine
+            icon={checkIn.verdict === 'on_site' ? 'check' : checkIn.verdict === 'off_site' ? 'alert' : 'pin'}
+            color={
+              checkIn.verdict === 'on_site'
+                ? colors.successText
+                : checkIn.verdict === 'off_site'
+                  ? colors.warningText
+                  : colors.textFaint
+            }
+          >
+            {fieldMessage(checkIn)}
+          </IconLine>
+        </View>
+      ) : null}
 
       {farm.boxInstallStatus === 'correction_required' && latestSub?.reviewNote ? (
         <>

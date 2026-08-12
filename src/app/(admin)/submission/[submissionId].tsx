@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import { Header } from '@/components/Header';
 import { PhotoThumb } from '@/components/PhotoThumb';
 import { Button, Card, Divider, Field, IconLine, Loading, Row, Screen, SegmentedControl, Spacer, Txt } from '@/components/ui';
+import { CheckInSummary } from '@/components/CheckInSummary';
 import { checklistLabel } from '@/features/photos/checklist';
 import { repo } from '@/data';
 import { CONNECTIVITY_LABEL, REJECT_REASON_LABEL, type Photo, type RejectReason } from '@/domain/types';
@@ -31,6 +32,11 @@ export default function SubmissionReview() {
     () => (submission?.phase === 'post_install' ? repo.getBoxInstallation(submission.farmId) : Promise.resolve(null)),
     [submission?.farmId, submission?.phase],
     ['box_installations'],
+  );
+  const { data: checkIns } = useRepoQuery(
+    () => (submission ? repo.listCheckIns(submission.farmId) : Promise.resolve([])),
+    [submission?.farmId],
+    ['check_ins'],
   );
 
   const [retake, setRetake] = useState<Set<string>>(new Set());
@@ -99,6 +105,12 @@ export default function SubmissionReview() {
           </Txt>
         </Card>
       ) : null}
+
+      <Card style={{ marginBottom: spacing.md }}>
+        <Txt variant="overline">Site visit</Txt>
+        <Spacer size={spacing.sm} />
+        <CheckInSummary checkIns={checkIns ?? []} />
+      </Card>
 
       <Txt variant="label">Tap a photo to mark it for retake</Txt>
       <Spacer size={spacing.sm} />

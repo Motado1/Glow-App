@@ -1,36 +1,34 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { GlowGradient } from '@/components/brand/GlowGradient';
-import { GlowIcon, type IconName } from '@/components/brand/GlowIcon';
 import { GlowLockup, GlowSymbol } from '@/components/brand/GlowLogo';
-import { Button, Divider, Field, Row, Screen, Spacer, Txt } from '@/components/ui';
-import { SEED_USERS } from '@/data/local/seed';
-import { ROLE_LABEL } from '@/domain/permissions';
+import { Button, Field, Screen, Spacer, Txt } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
 import { colors, spacing } from '@/theme';
 
-const ROLE_ICON: Record<string, IconName> = {
-  admin: 'folder',
-  photographer: 'camera',
-  installer: 'box',
-  reviewer: 'review',
-};
-
+/**
+ * Sign in with an email address.
+ *
+ * This screen used to list every account as a tap-to-enter card. That was
+ * convenient for a demo and wrong for a real tool: it published the roster to
+ * anyone who opened the app, and it made the whole thing read as a mock-up.
+ * The address is now typed and matched against the real user list.
+ */
 export default function Login() {
   const signIn = useAuthStore((s) => s.signIn);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function doSignIn(em: string) {
+  async function doSignIn() {
     setBusy(true);
     setError(null);
     try {
-      await signIn(em);
+      await signIn(email);
       router.replace('/');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Sign in failed');
+      setError(e instanceof Error ? e.message : 'Sign in failed.');
       setBusy(false);
     }
   }
@@ -63,45 +61,27 @@ export default function Login() {
           onChangeText={setEmail}
           keyboardType="email-address"
           placeholder="you@glow.org"
+          autoFocus
         />
         <Spacer />
-        <Button title="Sign in" onPress={() => doSignIn(email)} loading={busy} full />
+        <Button
+          title="Sign in"
+          icon="arrow-right"
+          onPress={doSignIn}
+          loading={busy}
+          disabled={!email.trim()}
+          full
+        />
         {error ? (
-          <Txt color={colors.dangerText} style={{ marginTop: spacing.sm }}>
+          <Txt color={colors.dangerText} style={{ marginTop: spacing.md }}>
             {error}
           </Txt>
         ) : null}
 
-        <Divider />
-        <Txt variant="overline">Select an account</Txt>
-        <Spacer size={spacing.sm} />
-        {/* A list separated by hairlines, not a stack of boxed cards — the
-            site's way of setting a short index. */}
-        <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}>
-          {SEED_USERS.map((u) => (
-            <Pressable
-              key={u.id}
-              onPress={() => doSignIn(u.email)}
-              style={({ pressed }) => [
-                {
-                  paddingVertical: spacing.md,
-                  borderBottomWidth: StyleSheet.hairlineWidth,
-                  borderBottomColor: colors.border,
-                },
-                pressed ? { opacity: 0.6 } : null,
-              ]}
-            >
-              <Row gap={spacing.md}>
-                <GlowIcon name={ROLE_ICON[u.role]} size={20} color={colors.textMuted} />
-                <View style={{ flex: 1 }}>
-                  <Txt variant="subtitle">{u.name}</Txt>
-                  <Txt variant="overline">{ROLE_LABEL[u.role]}</Txt>
-                </View>
-                <GlowIcon name="arrow-right" size={15} color={colors.textFaint} />
-              </Row>
-            </Pressable>
-          ))}
-        </View>
+        <Spacer size={spacing.xl} />
+        <Txt variant="caption" align="center">
+          Ask your administrator to add you if you don&rsquo;t have an account yet.
+        </Txt>
       </View>
     </Screen>
   );

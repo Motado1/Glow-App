@@ -11,7 +11,7 @@ import { useRepoQuery } from '@/stores/useRepoQuery';
 import { useUserMap } from '@/stores/useUsers';
 import { spacing } from '@/theme';
 
-type Preset = 'all' | 'unassigned' | 'assigned' | 'submitted' | 'retakes' | 'overdue' | 'problems' | 'approved';
+type Preset = 'all' | 'unassigned' | 'assigned' | 'submitted' | 'retakes' | 'overdue' | 'problems' | 'approved' | 'nopin';
 
 const PRESETS: { value: Preset; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -22,6 +22,7 @@ const PRESETS: { value: Preset; label: string }[] = [
   { value: 'overdue', label: 'Overdue' },
   { value: 'problems', label: 'Problems' },
   { value: 'approved', label: 'Approved' },
+  { value: 'nopin', label: 'No map pin' },
 ];
 
 export default function AdminFarms() {
@@ -43,6 +44,11 @@ export default function AdminFarms() {
       arr = arr.filter((f) => `${f.name} ${f.address} ${f.glowFarmId}`.toLowerCase().includes(s));
     }
     switch (preset) {
+      case 'nopin':
+        // Imported address-only rows that were never geocoded. They can't be
+        // routed, mapped, or checked in against.
+        arr = arr.filter((f) => !f.location);
+        break;
       case 'unassigned':
         arr = arr.filter((f) => !f.assignedPhotographerId && (f.preInstallStatus === 'ready_for_assignment' || f.preInstallStatus === 'not_ready'));
         break;

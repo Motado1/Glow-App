@@ -20,7 +20,10 @@ import type {
   NewActivityEvent,
   NewNotification,
   NewPhoto,
+  CheckIn,
+  NewCheckIn,
   NewProblem,
+  NewUser,
   Photo,
   PhotoPhase,
   Problem,
@@ -84,16 +87,31 @@ export interface DataRepository {
   listBoxInstallations(): Promise<BoxInstallation[]>;
   saveBoxInstallation(input: BoxInstallationInput, byUserId: string): Promise<BoxInstallation>;
 
+  // ---- Check-ins ----
+  /** Record an arrival. Never throws on a failed GPS fix — that is itself a result. */
+  recordCheckIn(input: NewCheckIn): Promise<CheckIn>;
+  listCheckIns(farmId: string): Promise<CheckIn[]>;
+
   // ---- Users ----
   listUsers(): Promise<User[]>;
   getUser(id: string): Promise<User | null>;
+  /** Email is the sign-in key — rejects a duplicate rather than shadowing one. */
+  createUser(input: NewUser): Promise<User>;
+  /**
+   * Patch a person. Deactivate via `{ active: false }` — there is deliberately
+   * no delete, because removing someone would orphan their farms and the photo
+   * history attributed to them.
+   */
+  updateUser(id: string, patch: Partial<Omit<User, 'id'>>): Promise<User>;
 
   // ---- Realtime seam (local: in-memory emitter; supabase: channel) ----
   subscribe(entity: EntityKind, cb: () => void): () => void;
 
   // ---- Lifecycle ----
-  /** Ensure seed data exists (idempotent). */
+  /** Prepare storage; creates the founding admin on a fresh install (idempotent). */
   init(): Promise<void>;
-  /** Wipe + reseed (demo reset). */
+  /** Erase everything back to a single administrator. Confirm before calling. */
   reset(): Promise<void>;
+  /** Replace the workspace with the sample dataset. As destructive as `reset`. */
+  loadSampleData(): Promise<void>;
 }

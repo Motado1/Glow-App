@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Platform, ScrollView, View } from 'react-native';
 import { Header } from '@/components/Header';
 import { Badge, Button, Card, Divider, Field, IconLine, Row, Screen, Spacer, Txt } from '@/components/ui';
@@ -10,15 +10,25 @@ import { parseFarmCsv } from '@/features/import/parseCsv';
 import { parseFarmPdf, PDF_SUPPORTED } from '@/features/import/parsePdf';
 import { RECOGNISED_COLUMNS, type FarmImportRow, type ParsedFarmImport } from '@/features/import/rows';
 import { useCurrentUser } from '@/stores/authStore';
-import { colors, spacing } from '@/theme';
+import { useRepoQuery } from '@/stores/useRepoQuery';
+import { colors, radius, spacing } from '@/theme';
 
-const SAMPLE = `Farm ID,Name,Address,Coordinates
-GF-90001,Sunny Slope Farm,"123 County Rd 5, Fresno, CA",
-GF-90002,Delta Breeze Ranch,,"37.96, -121.29"
-GF-90003,Windy Flats,"88 Mesa Dr, Bakersfield, CA",35.37,-119.02`;
+/**
+ * The template. Every column the importer understands, with three rows showing
+ * the three ways to give a location: address only, coordinates only, or both.
+ * Handing someone a file that already works beats describing one that would.
+ */
+const TEMPLATE = `Farm ID,Name,Address,State,Coordinates,Contact,Phone,Access,Notes
+GF-1001,Example Farm,"123 County Rd 5, Greeley, CO",CO,,Ray Hollenbeck,+1 555 010 1234,Gate code 1234,
+GF-1002,Coordinates Only Farm,,CO,"40.42, -104.71",,,,No street address
+GF-1003,Both Farm,"88 Mesa Dr, Wichita, KS",KS,"37.69, -97.34",Dana Whitmore,+1 555 010 5678,,`;
+
+/** Only the required columns, for a quick look at the shape. */
+const SAMPLE = TEMPLATE;
 
 export default function ImportFarms() {
   const user = useCurrentUser();
+  const { data: farms } = useRepoQuery(() => repo.listFarms(), [], ['farms']);
   const [text, setText] = useState('');
   const [parsed, setParsed] = useState<ParsedFarmImport | null>(null);
   const [rows, setRows] = useState<FarmImportRow[]>([]);
@@ -96,15 +106,43 @@ export default function ImportFarms() {
     setRows([]);
   }
 
+  /** Web only — hands over a .csv that already has the right headers. */
+  function downloadTemplate() {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const blob = new Blob([TEMPLATE], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'glow-farm-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const missingPins = rows.filter((r) => r.lat === undefined || r.lng === undefined).length;
+  const duplicates = parsed?.duplicateIds ?? [];
+
+  // Say plainly what the import will do before it does it: matching an existing
+  // Farm ID updates that farm rather than adding a second one.
+  const existingIds = useMemo(
+    () => new Set((farms ?? []).map((f) => f.glowFarmId.trim().toLowerCase())),
+    [farms],
+  );
+  const willUpdate = rows.filter((r) => existingIds.has(r.glowFarmId.trim().toLowerCase())).length;
+  const willCreate = rows.length - willUpdate;
 
   return (
     <Screen scroll>
       <Header eyebrow="Farms" title="Import" subtitle="CSV, or a table PDF on desktop" onBack={() => router.back()} />
       <Row gap={spacing.sm} wrap>
         <Button small variant="secondary" title={PDF_SUPPORTED ? 'Choose CSV or PDF' : 'Choose CSV file'} icon="file" onPress={pickFile} />
-        <Button small variant="ghost" title="Load sample" onPress={() => doParseText(SAMPLE)} />
+        <Button small variant="ghost" title="See the template" onPress={() => doParseText(TEMPLATE)} />
+        {Platform.OS === 'web' ? (
+          <Button small variant="ghost" title="Download template" icon="download" onPress={downloadTemplate} />
+        ) : null}
       </Row>
+      <Txt variant="caption" style={{ marginTop: spacing.xs }}>
+        Only Farm ID, Name, and either an address or coordinates are required.
+      </Txt>
       {!PDF_SUPPORTED ? (
         <Txt variant="caption" style={{ marginTop: spacing.xs }}>
           PDF import is available in the desktop app.
@@ -119,11 +157,33 @@ export default function ImportFarms() {
           <Row justify="space-between" wrap gap={spacing.sm}>
             <Txt variant="subtitle">Preview</Txt>
             <Row gap={spacing.xs} wrap>
-              <Badge label={`${rows.length} valid`} tone="success" />
+              {willCreate > 0 ? <Badge label={`${willCreate} new`} tone="success" /> : null}
+              {willUpdate > 0 ? <Badge label={`${willUpdate} will update`} tone="info" /> : null}
               {parsed.errors.length > 0 ? <Badge label={`${parsed.errors.length} skipped`} tone="danger" /> : null}
               {missingPins > 0 ? <Badge label={`${missingPins} no map pin`} tone="warning" /> : null}
             </Row>
           </Row>
+
+          {duplicates.length > 0 ? (
+            <>
+              <Spacer size={spacing.sm} />
+              <View style={{ backgroundColor: colors.dangerBg, borderRadius: radius.sm, padding: spacing.md }}>
+                <IconLine icon="alert" variant="subtitle" size={15} color={colors.dangerText}>
+                  {duplicates.length === 1 ? 'A Farm ID appears twice' : `${duplicates.length} Farm IDs appear more than once`}
+                </IconLine>
+                <Spacer size={spacing.xs} />
+                <Txt variant="caption" color={colors.dangerText}>
+                  {duplicates.slice(0, 6).join(', ')}
+                  {duplicates.length > 6 ? `, and ${duplicates.length - 6} more` : ''}
+                </Txt>
+                <Spacer size={spacing.xs} />
+                <Txt variant="caption">
+                  Only the last row for each will survive, and looking up map pins may attach the wrong
+                  coordinates. Fix the spreadsheet before importing.
+                </Txt>
+              </View>
+            </>
+          ) : null}
 
           {rows.length > 0 ? (
             <>

@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { CheckInSummary } from '@/components/CheckInSummary';
 import { Header } from '@/components/Header';
 import { PhotoThumb } from '@/components/PhotoThumb';
 import { boxInstallStatus, overallStatus, preInstallStatus } from '@/components/statusHelpers';
@@ -32,6 +33,7 @@ export default function AdminFarmDetail() {
   const { data: activity } = useRepoQuery(() => (farm ? repo.listActivity({ farmId: farm.id }) : Promise.resolve([] as ActivityEvent[])), [farm?.id], ['activity']);
   const { data: subs } = useRepoQuery(() => (farm ? repo.listSubmissions({ farmId: farm.id }) : Promise.resolve([] as Submission[])), [farm?.id], ['submissions']);
   const { data: boxInstall } = useRepoQuery(() => (farm ? repo.getBoxInstallation(farm.id) : Promise.resolve(null as BoxInstallation | null)), [farm?.id], ['box_installations']);
+  const { data: checkIns } = useRepoQuery(() => (farm ? repo.listCheckIns(farm.id) : Promise.resolve([])), [farm?.id], ['check_ins']);
   const [assigning, setAssigning] = useState(false);
   const [ptoBusy, setPtoBusy] = useState(false);
 
@@ -105,6 +107,13 @@ export default function AdminFarmDetail() {
         <Info label="Contact" value={farm.contact ? `${farm.contact.name ?? ''} ${farm.contact.phone ?? ''}`.trim() : undefined} />
         <Info label="Notes" value={farm.notes} />
         <Info label="Drive folder" value={farm.driveFolderUrl ?? 'Created once photos are approved'} />
+      </Card>
+
+      <Spacer />
+      <Txt variant="overline">Site visits</Txt>
+      <Spacer size={spacing.sm} />
+      <Card>
+        <CheckInSummary checkIns={checkIns ?? []} />
       </Card>
 
       {boxInstall ? (

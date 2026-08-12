@@ -16,5 +16,6 @@ export async function parseFarmPdf(_data: ArrayBuffer): Promise<ParsedFarmImport
     errors: [{ row: 1, message: 'PDF import is available in the desktop (web) app.' }],
     headers: [],
     totalRows: 0,
+    duplicateIds: [],
   };
 }

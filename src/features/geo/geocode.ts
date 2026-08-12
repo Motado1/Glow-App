@@ -6,7 +6,13 @@
  * misses) so the same address is never fetched twice. Plain `fetch`, so this
  * behaves identically on web and native — unlike expo-location's geocoder,
  * which throws on web.
+ *
+ * The cache is **persisted**. At 1.1s per address a 500-farm list takes about
+ * nine minutes, and an in-memory cache meant closing the app threw all of that
+ * away and started from zero. Now a re-run skips everything already resolved,
+ * so an interrupted import resumes instead of restarting.
  */
+import { KEYS, readJson, writeJson } from '@/data/local/storage';
 import type { GeoPoint } from '@/domain/types';
 import { isValidLatLng } from '@/lib/geo';
 
@@ -15,6 +21,27 @@ const MIN_INTERVAL_MS = 1100;
 
 const cache = new Map<string, GeoPoint | null>();
 let lastRequestAt = 0;
+let hydrated = false;
+/** Batches disk writes — one per lookup would be a write per second forever. */
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function hydrateCache(): Promise<void> {
+  if (hydrated) return;
+  hydrated = true;
+  const stored = await readJson<Record<string, GeoPoint | null>>(KEYS.geocodeCache, {});
+  for (const [k, v] of Object.entries(stored)) {
+    // Anything resolved in this session is fresher than what's on disk.
+    if (!cache.has(k)) cache.set(k, v);
+  }
+}
+
+function scheduleFlush(): void {
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    void writeJson(KEYS.geocodeCache, Object.fromEntries(cache)).catch(() => {});
+  }, 2000);
+}
 /** Serializes lookups so the rate limit holds even under concurrent callers. */
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -32,6 +59,7 @@ async function waitForSlot(): Promise<void> {
 export async function geocodeAddress(query: string): Promise<GeoPoint | null> {
   const key = normalize(query);
   if (!key) return null;
+  await hydrateCache();
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
 
@@ -57,9 +85,11 @@ export async function geocodeAddress(query: string): Promise<GeoPoint | null> {
       const lng = Number(hit?.lon);
       const point = hit && isValidLatLng(lat, lng) ? { lat, lng } : null;
       cache.set(key, point);
+      scheduleFlush();
       return point;
     } catch {
       cache.set(key, null);
+      scheduleFlush();
       return null;
     }
   });
@@ -68,8 +98,16 @@ export async function geocodeAddress(query: string): Promise<GeoPoint | null> {
   return run;
 }
 
+/** How many of these addresses are already resolved, for progress reporting. */
+export async function countCached(queries: string[]): Promise<number> {
+  await hydrateCache();
+  return queries.filter((q) => cache.has(normalize(q))).length;
+}
+
 /** Test/demo helper. */
 export function clearGeocodeCache(): void {
   cache.clear();
   lastRequestAt = 0;
+  hydrated = false;
+  void writeJson(KEYS.geocodeCache, {}).catch(() => {});
 }

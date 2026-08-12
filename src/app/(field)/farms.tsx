@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 import { FlatList } from 'react-native';
 import { FarmCard } from '@/components/FarmCard';
 import { Header } from '@/components/Header';
-import { SignOutButton } from '@/components/SignOutButton';
 import { SyncChip } from '@/components/SyncChip';
 import { EmptyState, Row, Screen, SegmentedControl, Spacer } from '@/components/ui';
 import { repo } from '@/data';
@@ -52,7 +51,7 @@ export default function FieldFarms() {
         eyebrow="Assignment"
         title={isInstaller ? 'My installations' : 'My farms'}
         subtitle={`${list.length} shown`}
-        right={<Row gap={spacing.sm}><SyncChip /><SignOutButton /></Row>}
+        right={<SyncChip />}
       />
       <SegmentedControl options={isInstaller ? INSTALLER_FILTERS : FILTERS} value={f} onChange={setF} />
       <Spacer size={spacing.sm} />

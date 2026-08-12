@@ -32,7 +32,15 @@ export const KEYS = {
   notifications: 'notifications',
   users: 'users',
   boxInstallations: 'box_installations',
+  checkIns: 'check_ins',
+  geocodeCache: 'geocode_cache',
   outbox: 'outbox',
   session: 'session',
-  seeded: 'seeded_v2',
+  /**
+   * Bumped to v3 when the app stopped seeding fake data. Any device still
+   * holding the old demo workspace re-initialises to an empty one on next
+   * launch, which is the point — otherwise 67 fabricated farms would sit
+   * alongside the first real ones with no way to tell them apart.
+   */
+  seeded: 'initialized_v3',
 } as const;

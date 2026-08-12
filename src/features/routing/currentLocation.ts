@@ -12,7 +12,13 @@ export type LocationResult =
   | { ok: true; point: GeoPoint; accuracyMeters?: number }
   | { ok: false; message: string };
 
-export async function getCurrentPoint(): Promise<LocationResult> {
+/**
+ * @param precise Ask for the best fix the hardware can give. Costs a second or
+ * two and some battery, so it is opt-in: routing is happy with `Balanced`
+ * (roughly 100 m), but a 0.1 mi arrival check is not — at 161 m the fence is
+ * barely wider than that error.
+ */
+export async function getCurrentPoint(precise = false): Promise<LocationResult> {
   try {
     const perm = await Location.requestForegroundPermissionsAsync();
     if (!perm.granted) {
@@ -23,7 +29,9 @@ export async function getCurrentPoint(): Promise<LocationResult> {
           : 'Location is turned off for this app. Enable it in settings, or pick a starting farm instead.',
       };
     }
-    const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    const pos = await Location.getCurrentPositionAsync({
+      accuracy: precise ? Location.Accuracy.High : Location.Accuracy.Balanced,
+    });
     return {
       ok: true,
       point: { lat: pos.coords.latitude, lng: pos.coords.longitude },

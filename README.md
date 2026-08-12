@@ -19,23 +19,19 @@ npx expo start      # press w for web, i for iOS, a for Android
 npm run web
 ```
 
-No accounts or API keys are required — the app ships with a **local backend** (seeded data on the
-device). On the login screen, pick any account to sign in.
+No accounts or API keys are required. A fresh install starts **empty** — one administrator
+(`jared@glow.org`) and nothing else. Sign in with that address, then **More → Import farms** and
+**More → People** to put real data in.
 
-### Sample accounts
-
-| Person | Role | Sees |
-| --- | --- | --- |
-| **Jared Morgan** | Administrator | Everything: dashboard, all farms, assignment, review, import |
-| **Dan Whitfield** | Field Photographer | Only farms assigned to him (Colorado) |
-| **Maria Ortiz** | Field Photographer | Only farms assigned to her (Kansas) |
-| **Sam Reeves** | Box Installer | Only farms assigned to him for box installation |
-| **Priya Nair** | Reviewer | Review queue + approvals |
+To see the app with data in it without typing any, use **More → Load sample data** (67 farms across
+two states, a crew, and a populated review queue). It's opt-in and confirm-gated, and it lives in a
+lazily-imported chunk so none of it ships in the main bundle.
 
 ## End-to-end demo (5 minutes)
 
-1. **Sign in as Jared** → the **Dashboard** answers the ops questions (need pre-install,
-   assigned, awaiting review, retakes, overdue, by-state completion).
+1. **Sign in as Jared** → the **Dashboard** shows only what needs him: reviews waiting, problems,
+   overdue, retakes, unassigned farms, farms with no map pin. Each row disappears at zero. The full
+   counts live on **More → Progress**.
 2. **Assign** → open **Assign**, pick a photographer, tap "All Colorado", and assign the
    unassigned queue in one move. (Or **Farms → Import** to load farms from CSV.)
 3. **Sign out, sign in as Dan** → **Today** shows his Colorado assignment: totals,
@@ -50,7 +46,7 @@ device). On the login screen, pick any account to sign in.
    **request retakes** with a reason. The farm status + activity history update live, and
    Dan gets an alert. Rejected items show up back on Dan's checklist as retakes.
 
-Use **More → Reset sample data** to start over.
+Use **More → Erase all data** to start over. Both data actions are behind a confirm.
 
 ## Box-installation demo (the second half of the lifecycle)
 
@@ -125,6 +121,13 @@ Other load-bearing pieces:
 - **Status system** (`src/domain/status.ts`) — the full pre-install / box-install / overall
   vocabularies from §5 with a transition guard, not just "complete/incomplete".
 - **RBAC** (`src/domain/permissions.ts`) — a photographer only ever sees their own farms.
+- **People** (`src/app/(admin)/people.tsx`) — add, edit and deactivate the crew. Email is the
+  sign-in key, so it's unique-checked, and the last active administrator can't lock themselves out.
+- **Check-ins** (`src/features/checkin/`) — one high-accuracy GPS read when a farm's checklist opens,
+  compared against the farm's pin at a **0.1 mi** threshold. Photos carry the device's coordinates,
+  not the farm's. Never blocks the camera: the classifier distinguishes *off site* from *no GPS*,
+  *no map pin on the farm*, and *fix too imprecise to judge*, and only the first is flagged to the
+  office. Pure and unit-tested.
 - **Offline outbox** (`src/features/sync/` + `src/stores/syncStore.ts`) — writes are
   optimistic; each queues an idempotent task drained when online. The simulated uploader is
   the single point a real one replaces. Connectivity = NetInfo + a dev override toggle.
@@ -133,7 +136,9 @@ Other load-bearing pieces:
   point is chooseable: device GPS, one of your farms, or a typed address/coordinates.
   Skips farms missing coordinates + Apple/Google Maps deep links.
 - **Import** (`src/features/import/`) — CSV and (on desktop) table PDFs normalise to one
-  shared validator. Requires Farm ID + Name + address **or** coordinates. Address-only rows
+  shared validator. Requires Farm ID + Name + address **or** coordinates; imports customer contact
+  columns; flags duplicate Farm IDs (which would otherwise corrupt the geocode backfill); says how
+  many rows update vs. create before you commit; and ships a downloadable template. Address-only rows
   can be geocoded to map pins via free OpenStreetMap lookup (`src/features/geo/geocode.ts`).
 - **Photos** (`src/features/photos/`) — configurable checklist, required-photo validation,
   and consistent file naming (`GlowFarmID_PreInstall_Meter_01_2026-07-23.jpg`).
@@ -156,7 +161,7 @@ __tests__/             # pure-logic unit tests
 
 ```bash
 npx tsc --noEmit            # types
-npx jest                    # 59 unit tests (route optimizer, naming, status, outbox, CSV, RBAC, checklist)
+npx jest                    # 78 unit tests (route optimizer, naming, status, outbox, CSV, RBAC, checklist)
 npx expo export --platform web   # proves the universal build (catches web-incompatible imports)
 ```
 

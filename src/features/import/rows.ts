@@ -22,6 +22,9 @@ export interface FarmImportRow {
   notes?: string;
   accessInstructions?: string;
   scheduledDate?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 }
 
 export interface FarmImportError {
@@ -35,6 +38,8 @@ export interface ParsedFarmImport {
   errors: FarmImportError[];
   headers: string[];
   totalRows: number;
+  /** Farm IDs appearing more than once in this file. */
+  duplicateIds: string[];
 }
 
 const FIELD_ALIASES = {
@@ -50,12 +55,15 @@ const FIELD_ALIASES = {
   notes: ['notes', 'note', 'comments'],
   accessInstructions: ['access', 'access instructions', 'gate code'],
   scheduledDate: ['scheduled', 'scheduled date', 'date'],
+  contactName: ['contact', 'contact name', 'owner', 'owner name', 'landowner', 'primary contact'],
+  contactPhone: ['phone', 'contact phone', 'owner phone', 'telephone', 'mobile', 'cell'],
+  contactEmail: ['email', 'contact email', 'owner email'],
 } as const;
 
 type HeaderField = keyof typeof FIELD_ALIASES;
 
 export const RECOGNISED_COLUMNS =
-  'Glow Farm ID, Name, Address, Coordinates (or Lat + Lng), State, Region, Hub ID, Notes, Access, Scheduled';
+  'Glow Farm ID, Name, Address, Coordinates (or Lat + Lng), State, Region, Hub ID, Notes, Access, Scheduled, Contact, Phone, Email';
 
 function normalizeHeader(h: string): string {
   return h.trim().toLowerCase().replace(/[_\s]+/g, ' ');
@@ -93,7 +101,7 @@ export function rowsFromRecords(
   if (!hasLocationColumn) missingHeaders.push('Address or Coordinates');
   if (missingHeaders.length > 0) {
     errors.push({ row: 1, message: `Missing ${missingHeaders.length === 1 ? 'a required column' : 'required columns'}: ${missingHeaders.join(', ')}` });
-    return { rows, errors, headers, totalRows: records.length };
+    return { rows, errors, headers, totalRows: records.length, duplicateIds: [] };
   }
 
   records.forEach((raw, i) => {
@@ -165,8 +173,23 @@ export function rowsFromRecords(
       notes: get('notes') || undefined,
       accessInstructions: get('accessInstructions') || undefined,
       scheduledDate: get('scheduledDate') || undefined,
+      contactName: get('contactName') || undefined,
+      contactPhone: get('contactPhone') || undefined,
+      contactEmail: get('contactEmail') || undefined,
     });
   });
 
-  return { rows, errors, headers, totalRows: records.length };
+  // Duplicate Farm IDs inside one file were silently accepted. They collide on
+  // upsert (last row wins) and, worse, the geocode backfill matches rows by
+  // Farm ID — so a duplicate could write one farm's coordinates onto another.
+  const seen = new Map<string, number>();
+  const duplicated = new Set<string>();
+  rows.forEach((r) => {
+    const key = r.glowFarmId.trim().toLowerCase();
+    seen.set(key, (seen.get(key) ?? 0) + 1);
+    if ((seen.get(key) ?? 0) > 1) duplicated.add(r.glowFarmId);
+  });
+  const duplicateIds = [...duplicated];
+
+  return { rows, errors, headers, totalRows: records.length, duplicateIds };
 }

@@ -66,7 +66,9 @@ export function isFieldRole(role: Role): boolean {
 
 /** Landing route after login, by role. */
 export function homeRouteForRole(role: Role): string {
-  return isAdminRole(role) ? '/(admin)/dashboard' : '/(field)/farms';
+  // Field users land on Today — the screen built to be their first look at the
+  // day. This pointed at the Farms tab, so nobody ever arrived on it.
+  return isAdminRole(role) ? '/(admin)/dashboard' : '/(field)';
 }
 
 /** Can this user see this specific farm? */

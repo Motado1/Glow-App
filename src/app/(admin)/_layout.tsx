@@ -29,6 +29,11 @@ export default function AdminLayout() {
       <Tabs.Screen name="assignments" options={{ title: 'Assign', tabBarIcon: tabIcon('assign') }} />
       <Tabs.Screen name="review" options={{ title: 'Review', tabBarIcon: tabIcon('review') }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: tabIcon('more') }} />
+      {/* Reached from the More menu, not the tab bar. */}
+      <Tabs.Screen name="people" options={{ href: null }} />
+      <Tabs.Screen name="problems" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="progress" options={{ href: null }} />
       <Tabs.Screen name="farm/[farmId]" options={{ href: null }} />
       <Tabs.Screen name="submission/[submissionId]" options={{ href: null }} />
       <Tabs.Screen name="import" options={{ href: null }} />

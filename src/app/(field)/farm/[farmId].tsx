@@ -6,6 +6,8 @@ import { PhotoThumb } from '@/components/PhotoThumb';
 import { fieldPreInstallStatus, SYNC_LABEL, syncTone } from '@/components/statusHelpers';
 import { Badge, Button, Card, ChecklistMark, Divider, Field, IconLine, Loading, Row, Screen, Spacer, StatusPill, Txt } from '@/components/ui';
 import { files, repo } from '@/data';
+import { fieldMessage } from '@/features/checkin/classify';
+import { useCheckIn } from '@/features/checkin/useCheckIn';
 import { REJECT_REASON_LABEL, type ChecklistItem, type Photo } from '@/domain/types';
 import { canContactFarm } from '@/domain/permissions';
 import { isFieldBlocked } from '@/domain/status';
@@ -27,6 +29,7 @@ export default function FieldFarmDetail() {
   const enqueue = useSyncStore((s) => s.enqueuePhotoUpload);
 
   const { data: farm } = useRepoQuery(() => repo.getFarm(farmId!), [farmId], ['farms']);
+  const checkIn = useCheckIn(farm ?? undefined, user?.id, 'pre_install');
   const { data: photos } = useRepoQuery(
     () => (farm ? repo.listPhotos(farm.id, 'pre_install') : Promise.resolve([] as Photo[])),
     [farm?.id],
@@ -85,7 +88,10 @@ export default function FieldFarmDetail() {
       attempts: 0,
       capturedAt: now,
       capturedBy: user?.id ?? 'unknown',
-      location: farm!.location,
+      // The device's position, from this visit's check-in — NOT `farm.location`,
+      // which is where the farm is and would make every distance read as zero.
+      location: checkIn?.point,
+      locationAccuracyM: checkIn?.accuracyMeters,
     });
     await enqueue(saved.id);
     if (farm!.preInstallStatus === 'assigned' || farm!.preInstallStatus === 'route_planned' || farm!.preInstallStatus === 'retake_required') {
@@ -146,6 +152,22 @@ export default function FieldFarmDetail() {
         {farm.accessInstructions ? (
           <View style={{ marginTop: 6 }}>
             <IconLine icon="key">{farm.accessInstructions}</IconLine>
+          </View>
+        ) : null}
+        {checkIn ? (
+          <View style={{ marginTop: spacing.sm }}>
+            <IconLine
+              icon={checkIn.verdict === 'on_site' ? 'check' : checkIn.verdict === 'off_site' ? 'alert' : 'pin'}
+              color={
+                checkIn.verdict === 'on_site'
+                  ? colors.successText
+                  : checkIn.verdict === 'off_site'
+                    ? colors.warningText
+                    : colors.textFaint
+              }
+            >
+              {fieldMessage(checkIn)}
+            </IconLine>
           </View>
         ) : null}
         <Spacer size={spacing.sm} />
