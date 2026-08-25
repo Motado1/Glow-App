@@ -1,11 +1,12 @@
 import { parseFarmCsv } from '@/features/import/parseCsv';
 
 describe('farm import — required fields', () => {
-  it('accepts an address-only row (no coordinates, no state)', () => {
+  it('accepts an address-only row (no coordinates, no State column)', () => {
     const r = parseFarmCsv('Farm ID,Name,Address\nGF-1,Alpha,"1 County Rd, Fresno CA"');
     expect(r.errors).toHaveLength(0);
     expect(r.rows[0]).toMatchObject({ glowFarmId: 'GF-1', name: 'Alpha', address: '1 County Rd, Fresno CA' });
-    expect(r.rows[0].state).toBeUndefined();
+    // With no State column the address is the only place a state can come from.
+    expect(r.rows[0].state).toBe('CA');
   });
 
   it('accepts a coordinates-only row (no address)', () => {
@@ -39,11 +40,19 @@ describe('farm import — required fields', () => {
     expect(r.errors[0].message).toMatch(/both be provided/);
   });
 
-  it('reports missing required columns once, at the header', () => {
+  it('derives a Farm ID when the file has no ID column', () => {
     const r = parseFarmCsv('Name,Address\nAlpha,1 Rd');
+    expect(r.errors).toHaveLength(0);
+    expect(r.rows[0]).toMatchObject({ name: 'Alpha', address: '1 Rd', idGenerated: true });
+    expect(r.generatedIds).toBe(true);
+  });
+
+  it('reports a missing location column once, at the header', () => {
+    const r = parseFarmCsv('Farm ID,Name\nGF-1,Alpha');
     expect(r.rows).toHaveLength(0);
+    expect(r.errors).toHaveLength(1);
     expect(r.errors[0].row).toBe(1);
-    expect(r.errors[0].message).toMatch(/Farm ID/);
+    expect(r.errors[0].message).toMatch(/Address or Coordinates/);
   });
 
   it('keeps good rows and flags only the bad one', () => {

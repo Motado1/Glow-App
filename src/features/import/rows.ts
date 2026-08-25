@@ -5,9 +5,13 @@
  * and then runs through `rowsFromRecords`, so there is exactly one definition
  * of what a valid farm row is.
  *
- * Required: Glow Farm ID + Name + (Address OR coordinates).
- * State is optional — many exports don't carry it.
+ * Required: a location — an Address OR coordinates.
+ * Glow Farm ID and Name are required only when the file has those columns; a
+ * bare address list (the common Hub/region export) gets both derived from the
+ * address instead of being rejected. State is optional and inferred from the
+ * address when it isn't its own column.
  */
+import { deriveFarmId, deriveFarmName, normalizeState, parseAddressParts } from './address';
 import { isValidLatLng, parseCoordinates } from '@/lib/geo';
 
 export interface FarmImportRow {
@@ -25,6 +29,10 @@ export interface FarmImportRow {
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string;
+  /** True when the Farm ID was derived from the address, not read from the file. */
+  idGenerated?: boolean;
+  /** True when the name was derived from the address. */
+  nameGenerated?: boolean;
 }
 
 export interface FarmImportError {
@@ -40,6 +48,10 @@ export interface ParsedFarmImport {
   totalRows: number;
   /** Farm IDs appearing more than once in this file. */
   duplicateIds: string[];
+  /** The file had no Farm ID column, so IDs were derived from the address. */
+  generatedIds: boolean;
+  /** The file had no Name column, so names were derived from the address. */
+  generatedNames: boolean;
 }
 
 const FIELD_ALIASES = {
@@ -63,7 +75,7 @@ const FIELD_ALIASES = {
 type HeaderField = keyof typeof FIELD_ALIASES;
 
 export const RECOGNISED_COLUMNS =
-  'Glow Farm ID, Name, Address, Coordinates (or Lat + Lng), State, Region, Hub ID, Notes, Access, Scheduled, Contact, Phone, Email';
+  'Address (or Coordinates / Lat + Lng), Glow Farm ID, Name, State, Region, Hub ID, Notes, Access, Scheduled, Contact, Phone, Email';
 
 function normalizeHeader(h: string): string {
   return h.trim().toLowerCase().replace(/[_\s]+/g, ' ');
@@ -95,13 +107,18 @@ export function rowsFromRecords(
   const errors: FarmImportError[] = [];
 
   const hasLocationColumn = !!(headerMap.address || headerMap.coordinates || (headerMap.lat && headerMap.lng));
-  const missingHeaders: string[] = [];
-  if (!headerMap.glowFarmId) missingHeaders.push('Farm ID');
-  if (!headerMap.name) missingHeaders.push('Name');
-  if (!hasLocationColumn) missingHeaders.push('Address or Coordinates');
-  if (missingHeaders.length > 0) {
-    errors.push({ row: 1, message: `Missing ${missingHeaders.length === 1 ? 'a required column' : 'required columns'}: ${missingHeaders.join(', ')}` });
-    return { rows, errors, headers, totalRows: records.length, duplicateIds: [] };
+  // Only a location is structurally required. A file with no Farm ID / Name
+  // column gets both derived per row; a file that *has* those columns but
+  // leaves a cell blank is still an error, because a half-filled ID column
+  // means the export is wrong, not minimal.
+  const hasIdColumn = !!headerMap.glowFarmId;
+  const hasNameColumn = !!headerMap.name;
+  if (!hasLocationColumn) {
+    errors.push({ row: 1, message: 'Missing a required column: Address or Coordinates' });
+    return {
+      rows, errors, headers, totalRows: records.length, duplicateIds: [],
+      generatedIds: false, generatedNames: false,
+    };
   }
 
   records.forEach((raw, i) => {
@@ -111,8 +128,6 @@ export function rowsFromRecords(
       return h ? (raw[h] ?? '').trim() : '';
     };
 
-    const glowFarmId = get('glowFarmId');
-    const name = get('name');
     const address = get('address');
 
     // --- coordinates: a combined "lat, lng" cell, or separate columns ---
@@ -152,20 +167,39 @@ export function rowsFromRecords(
     }
 
     const hasCoords = lat !== undefined && lng !== undefined;
+    // The seed for anything derived: the address when there is one, else the
+    // pin — so the same file always yields the same Farm ID.
+    const seed = address || (hasCoords ? `${lat},${lng}` : '');
+    const glowFarmId = hasIdColumn ? get('glowFarmId') : deriveFarmId(seed);
+    const name = hasNameColumn
+      ? get('name')
+      : (address ? deriveFarmName(address) : seed);
+
     const missing: string[] = [];
-    if (!glowFarmId) missing.push('Farm ID');
-    if (!name) missing.push('Name');
+    if (hasIdColumn && !glowFarmId) missing.push('Farm ID');
+    if (hasNameColumn && !name) missing.push('Name');
     if (!address && !hasCoords) missing.push('Address or Coordinates');
     if (missing.length > 0) {
       errors.push({ row: lineNo, message: `Missing: ${missing.join(', ')}` });
       return;
     }
 
+    // State drives assignment, progress and route grouping, so take it from the
+    // address when the file has no column of its own. Full names become USPS
+    // codes ("Utah" → "UT"); an unrecognised value is kept verbatim.
+    const stateCell = get('state');
+    const addressParts = address ? parseAddressParts(address) : {};
+    const state = stateCell
+      ? normalizeState(stateCell) ?? stateCell
+      : addressParts.state;
+
     rows.push({
       glowFarmId,
       name,
+      idGenerated: !hasIdColumn || undefined,
+      nameGenerated: !hasNameColumn || undefined,
       address: address || undefined,
-      state: get('state') || undefined,
+      state: state || undefined,
       region: get('region') || undefined,
       hubRecordId: get('hubRecordId') || undefined,
       lat,
@@ -191,5 +225,13 @@ export function rowsFromRecords(
   });
   const duplicateIds = [...duplicated];
 
-  return { rows, errors, headers, totalRows: records.length, duplicateIds };
+  return {
+    rows,
+    errors,
+    headers,
+    totalRows: records.length,
+    duplicateIds,
+    generatedIds: !hasIdColumn,
+    generatedNames: !hasNameColumn,
+  };
 }

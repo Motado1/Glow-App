@@ -23,8 +23,13 @@ GF-1001,Example Farm,"123 County Rd 5, Greeley, CO",CO,,Ray Hollenbeck,+1 555 01
 GF-1002,Coordinates Only Farm,,CO,"40.42, -104.71",,,,No street address
 GF-1003,Both Farm,"88 Mesa Dr, Wichita, KS",KS,"37.69, -97.34",Dana Whitmore,+1 555 010 5678,,`;
 
-/** Only the required columns, for a quick look at the shape. */
-const SAMPLE = TEMPLATE;
+/**
+ * The other shape that turns up constantly: a region export that is nothing but
+ * addresses. Farm ID, name and state are all derived from the address.
+ */
+const ADDRESS_ONLY = `Address
+"12797 St Ann Christine Ct, Riverton, Utah 84065"
+"2664 Mont Sur Dr, Riverton, Utah 84065"`;
 
 export default function ImportFarms() {
   const user = useCurrentUser();
@@ -82,7 +87,11 @@ export default function ImportFarms() {
     for (let i = 0; i < targets.length; i++) {
       const t = targets[i];
       setGeo(`Looking up ${i + 1} of ${targets.length}…`);
-      const q = [t.address, t.state].filter(Boolean).join(', ');
+      // The state is only worth appending when the address doesn't say it —
+      // "…, Riverton, Utah 84065, UT" confuses the geocoder rather than helping.
+      const addr = t.address ?? '';
+      const hasState = !!t.state && new RegExp(`\\b${t.state}\\b`, 'i').test(addr);
+      const q = [addr, hasState ? '' : t.state].filter(Boolean).join(', ');
       const point = await geocodeAddress(q);
       if (point) {
         const idx = next.findIndex((r) => r.glowFarmId === t.glowFarmId);
@@ -136,12 +145,14 @@ export default function ImportFarms() {
       <Row gap={spacing.sm} wrap>
         <Button small variant="secondary" title={PDF_SUPPORTED ? 'Choose CSV or PDF' : 'Choose CSV file'} icon="file" onPress={pickFile} />
         <Button small variant="ghost" title="See the template" onPress={() => doParseText(TEMPLATE)} />
+        <Button small variant="ghost" title="Addresses only" onPress={() => doParseText(ADDRESS_ONLY)} />
         {Platform.OS === 'web' ? (
           <Button small variant="ghost" title="Download template" icon="download" onPress={downloadTemplate} />
         ) : null}
       </Row>
       <Txt variant="caption" style={{ marginTop: spacing.xs }}>
-        Only Farm ID, Name, and either an address or coordinates are required.
+        Only an address (or coordinates) is required. A file with nothing but addresses works —
+        the Farm ID, name and state are taken from each address.
       </Txt>
       {!PDF_SUPPORTED ? (
         <Txt variant="caption" style={{ marginTop: spacing.xs }}>
@@ -149,7 +160,13 @@ export default function ImportFarms() {
         </Txt>
       ) : null}
       <Spacer />
-      <Field label="Or paste CSV" value={text} onChangeText={doParseText} placeholder="Farm ID,Name,Address,Coordinates…" multiline />
+      <Field
+        label="Or paste CSV"
+        value={text}
+        onChangeText={doParseText}
+        placeholder={'Address\n"12797 St Ann Christine Ct, Riverton, Utah 84065"'}
+        multiline
+      />
       <Spacer />
 
       {parsed ? (
@@ -182,6 +199,19 @@ export default function ImportFarms() {
                   coordinates. Fix the spreadsheet before importing.
                 </Txt>
               </View>
+            </>
+          ) : null}
+
+          {rows.length > 0 && (parsed.generatedIds || parsed.generatedNames) ? (
+            <>
+              <Spacer size={spacing.sm} />
+              <Txt variant="caption">
+                {parsed.generatedIds && parsed.generatedNames
+                  ? 'No Farm ID or Name column — both come from the address below, and the ID stays the same if you import this list again.'
+                  : parsed.generatedIds
+                    ? 'No Farm ID column — each ID comes from the address, and stays the same if you import this list again.'
+                    : 'No Name column — each name is the street line of the address.'}
+              </Txt>
             </>
           ) : null}
 
@@ -264,8 +294,10 @@ export default function ImportFarms() {
 
       <Divider />
       <Txt variant="caption">
-        Required: Farm ID, Name, and either an Address or Coordinates. Recognised columns: {RECOGNISED_COLUMNS}.
-        Rows match by Farm ID, so re-importing updates existing farms instead of duplicating them.
+        Required: an Address or Coordinates. Recognised columns: {RECOGNISED_COLUMNS}.
+        Rows match by Farm ID, so re-importing updates existing farms instead of duplicating them —
+        and a generated Farm ID comes from the address, so re-importing an address list updates it
+        too. Replace a generated ID with the real Glow farm ID whenever the Hub has one.
         {Platform.OS === 'web' ? ' Addresses without coordinates can be looked up automatically.' : ''}
       </Txt>
     </Screen>

@@ -35,7 +35,12 @@ export default function Assignments() {
       ),
     [farms, isInstaller],
   );
-  const states = useMemo(() => [...new Set(unassigned.map((f) => f.state))], [unassigned]);
+  // Address-only imports can leave a farm with no state; an empty quick-select
+  // chip reads as a broken button, so drop it.
+  const states = useMemo(
+    () => [...new Set(unassigned.map((f) => f.state).filter(Boolean))],
+    [unassigned],
+  );
 
   const summaries = useMemo(() => {
     const map = new Map<string, { count: number; done: number }>();

@@ -21,7 +21,15 @@ npm run web
 
 No accounts or API keys are required. A fresh install starts **empty** — one administrator
 (`jared@glow.org`) and nothing else. Sign in with that address, then **More → Import farms** and
-**More → People** to put real data in.
+**More → People** to put real data in. The import accepts a plain address list, so a region export
+like
+
+```csv
+Address
+"12797 St Ann Christine Ct, Riverton, Utah 84065"
+```
+
+goes straight in; tap **Find map pins** in the preview to geocode the addresses before importing.
 
 To see the app with data in it without typing any, use **More → Load sample data** (67 farms across
 two states, a crew, and a populated review queue). It's opt-in and confirm-gated, and it lives in a
@@ -136,9 +144,15 @@ Other load-bearing pieces:
   point is chooseable: device GPS, one of your farms, or a typed address/coordinates.
   Skips farms missing coordinates + Apple/Google Maps deep links.
 - **Import** (`src/features/import/`) — CSV and (on desktop) table PDFs normalise to one
-  shared validator. Requires Farm ID + Name + address **or** coordinates; imports customer contact
-  columns; flags duplicate Farm IDs (which would otherwise corrupt the geocode backfill); says how
-  many rows update vs. create before you commit; and ships a downloadable template. Address-only rows
+  shared validator. Requires only a location: an address **or** coordinates. A file with nothing
+  but an `Address` column — the usual region export — imports as-is: the Farm ID is derived from
+  the address (stable, so re-importing the same list updates those farms instead of duplicating
+  them), the name is the street line, and the state is read off the address (`Utah` → `UT`), which
+  is what assignment, progress and route grouping key on (`src/features/import/address.ts`). Farm ID
+  and Name are still required per row when the file *has* those columns, since a half-filled ID
+  column is a broken export rather than a minimal one. It also imports customer contact columns;
+  flags duplicate Farm IDs (which would otherwise corrupt the geocode backfill); says how many rows
+  update vs. create before you commit; and ships a downloadable template. Address-only rows
   can be geocoded to map pins via free OpenStreetMap lookup (`src/features/geo/geocode.ts`).
 - **Photos** (`src/features/photos/`) — configurable checklist, required-photo validation,
   and consistent file naming (`GlowFarmID_PreInstall_Meter_01_2026-07-23.jpg`).

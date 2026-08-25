@@ -35,7 +35,9 @@ export default function Today() {
     () => mine.filter((f) => !isPreInstallDone(f.preInstallStatus) && !isFieldBlocked(f.preInstallStatus)),
     [mine],
   );
-  const primaryState = mine[0]?.state ?? 'Your';
+  // Falls back to "Your" when the farm carries no state (an address the
+  // importer couldn't place), rather than heading the screen with a blank.
+  const primaryState = mine.find((f) => f.state)?.state || 'Your';
   const home = useHomeBase();
   const start = useMemo(() => resolveStart(startMode, active, home), [startMode, active, home]);
   const route = useMemo(() => optimizeRoute(active, start.point), [active, start.point]);

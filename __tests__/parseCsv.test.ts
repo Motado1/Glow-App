@@ -9,8 +9,8 @@ describe('parseFarmCsv', () => {
     expect(r.errors).toHaveLength(0);
   });
 
-  it('flags missing required columns', () => {
-    const r = parseFarmCsv('name,address\nAlpha,1 Rd');
+  it('flags a file with no location column at all', () => {
+    const r = parseFarmCsv('name,contact\nAlpha,Ray Hollenbeck');
     expect(r.errors.length).toBeGreaterThan(0);
     expect(r.rows).toHaveLength(0);
   });

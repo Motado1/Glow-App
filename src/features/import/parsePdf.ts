@@ -17,5 +17,7 @@ export async function parseFarmPdf(_data: ArrayBuffer): Promise<ParsedFarmImport
     headers: [],
     totalRows: 0,
     duplicateIds: [],
+    generatedIds: false,
+    generatedNames: false,
   };
 }
